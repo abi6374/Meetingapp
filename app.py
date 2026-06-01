@@ -162,6 +162,59 @@ html, body, [class*="css"] {
     font-size: 0.8rem;
     color: #94a3b8;
 }
+
+.record-card {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.98));
+    border: 1px solid #334155;
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
+}
+.record-card-active {
+    border-color: rgba(59, 130, 246, 0.85);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25), 0 24px 60px rgba(59, 130, 246, 0.12);
+}
+.record-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #f8fafc;
+}
+.record-subtitle {
+    color: #94a3b8;
+    margin-top: 4px;
+    font-size: 0.92rem;
+}
+.record-steps {
+    margin-top: 12px;
+    color: #cbd5e1;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+.mic-spotlight {
+    background: radial-gradient(circle at top, rgba(96,165,250,0.25), transparent 60%);
+    border-radius: 16px;
+    padding: 6px 0 0;
+}
+.mic-cta {
+    background: linear-gradient(180deg, rgba(30,41,59,0.95), rgba(15,23,42,0.95));
+    border: 1px solid #475569;
+    border-radius: 18px;
+    padding: 16px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+.mic-cta-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #f8fafc;
+    margin-bottom: 6px;
+}
+.mic-cta-copy {
+    color: #94a3b8;
+    font-size: 0.92rem;
+    margin-bottom: 12px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -750,25 +803,75 @@ with tab_live:
             if "live_recording" not in st.session_state:
                 st.session_state.live_recording = False
                 st.session_state.live_start = None
+                st.session_state.live_audio = None
+
+            card_class = "record-card record-card-active" if st.session_state.live_recording else "record-card"
+            status_title = "Recording in progress" if st.session_state.live_recording else "Ready to record"
+            status_copy = (
+                "Mic is active. Use Stop & Process when finished." if st.session_state.live_recording
+                else "Press Start Meeting, then tap the large mic button below to begin recording."
+            )
+
+            elapsed = int(time.time() - (st.session_state.live_start or time.time())) if st.session_state.live_recording else 0
+            timer_html = f"<div style='color:#cbd5e1;margin-top:6px;'>Live timer: {elapsed//3600:02d}:{(elapsed%3600)//60:02d}:{elapsed%60:02d}</div>" if st.session_state.live_recording else ""
+
+            st.markdown(
+                f'<div class="{card_class}">'
+                f'<div class="record-title">{status_title}</div>'
+                f'<div class="record-subtitle">{status_copy}</div>'
+                f'{timer_html}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
             if not st.session_state.live_recording:
                 if st.button("Start Meeting", use_container_width=True, type="primary"):
                     st.session_state.live_recording = True
                     st.session_state.live_start = time.time()
                     st.session_state.audio_bytes = None
-            else:
-                if st.button("Stop & Process", use_container_width=True):
-                    st.session_state.live_recording = False
-                    st.session_state.live_end = time.time()
-                st.markdown('<div class="wave"></div>', unsafe_allow_html=True)
-                elapsed = int(time.time() - st.session_state.live_start)
-                st.markdown(f"**Live time:** {elapsed//3600:02d}:{(elapsed%3600)//60:02d}:{elapsed%60:02d}")
+                    st.session_state.live_audio = None
+                    st.toast("Meeting started. Press the mic button below to record.")
 
-            audio_live = audio_recorder(text="Meeting live — click to stop", pause_threshold=60.0)
+            st.markdown(
+                '<div class="mic-cta">'
+                '<div class="mic-cta-title">Microphone Recorder</div>'
+                '<div class="mic-cta-copy">Click the large mic button below to start/stop capturing audio.</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown('<div class="mic-spotlight">', unsafe_allow_html=True)
+            audio_live = audio_recorder(
+                text="🎙 Record Audio",
+                recording_color="#ef4444",
+                neutral_color="#0f172a",
+                icon_size="4x",
+                pause_threshold=60.0,
+                sample_rate=16000,
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            st.markdown(
+                '<div style="margin-top:8px;color:#93c5fd;font-weight:600;">'
+                'If the mic prompt does not appear, allow browser microphone access and refresh the page.'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
             if audio_live:
+                st.session_state.live_audio = audio_live
                 st.session_state.audio_bytes = audio_live
                 st.success(f"Captured {len(audio_live)/1024:.1f} KB of audio")
                 st.audio(audio_live)
+
+            if st.session_state.live_recording:
+                stop_disabled = st.session_state.live_audio is None
+                stop_label = "Stop & Process"
+                if st.button(stop_label, use_container_width=True, disabled=stop_disabled):
+                    st.session_state.live_recording = False
+                    st.session_state.live_end = time.time()
+                    if st.session_state.live_audio:
+                        st.session_state.audio_bytes = st.session_state.live_audio
+                    st.success("Meeting stopped. Go to Upload & Process to transcribe.")
         except ImportError:
             st.warning("Install `audio-recorder-streamlit` for live recording. Use Upload tab instead.")
 
