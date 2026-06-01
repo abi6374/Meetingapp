@@ -14,6 +14,18 @@ import platform
 from datetime import datetime
 from pathlib import Path
 
+# ── torchaudio Monkeypatch ────────────────────────────────────────────────────
+# Resolve AttributeError: module 'torchaudio' has no attribute 'set_audio_backend'
+# This occurs because pyannote.audio (including some 4.x versions) calls a 
+# removed API in torchaudio 2.1.0+.
+try:
+    import torchaudio
+    if not hasattr(torchaudio, "set_audio_backend"):
+        torchaudio.set_audio_backend = lambda x: None
+        logging.info("Applied monkeypatch for torchaudio.set_audio_backend")
+except ImportError:
+    pass
+
 # ── Logging Configuration ─────────────────────────────────────────────────────
 LOG_DIR = Path("logs")
 LOG_DIR.mkdir(exist_ok=True)
@@ -30,32 +42,58 @@ logging.basicConfig(
 logger = logging.getLogger("MeetingMind")
 
 # ── System Diagnostics ────────────────────────────────────────────────────────
-def get_system_diagnostics():
+def check_audio_ai_environment():
+    """Exhaustive check of the ML and audio processing environment."""
     import torch
+    import torchaudio
+    try:
+        import pyannote.audio
+        pyannote_ver = pyannote.audio.__version__
+    except ImportError:
+        pyannote_ver = "NOT_INSTALLED"
     
-    diag = {
-        "timestamp": datetime.now().isoformat(),
-        "os": platform.system(),
-        "os_release": platform.release(),
-        "python_version": sys.version,
-        "torch_version": torch.__version__,
-        "cuda_available": torch.cuda.is_available(),
-        "ffmpeg_path": shutil.which("ffmpeg"),
-        "ffprobe_path": shutil.which("ffprobe"),
-    }
-    
-    if diag["cuda_available"]:
-        diag["gpu_name"] = torch.cuda.get_device_name(0)
-    
-    # Check for torchcodec
+    try:
+        import faster_whisper
+        whisper_ver = faster_whisper.__version__
+    except ImportError:
+        whisper_ver = "NOT_INSTALLED"
+
     try:
         import torchcodec
-        diag["torchcodec_version"] = getattr(torchcodec, "__version__", "installed")
+        codec_ver = getattr(torchcodec, "__version__", "Installed")
     except ImportError:
-        diag["torchcodec_version"] = "NOT_INSTALLED"
-    except Exception as e:
-        diag["torchcodec_version"] = f"ERROR: {str(e)}"
+        codec_ver = "MISSING"
 
+    results = {
+        "Python": sys.version.split()[0],
+        "Platform": platform.platform(),
+        "Torch": torch.__version__,
+        "TorchAudio": torchaudio.__version__,
+        "PyAnnote.Audio": pyannote_ver,
+        "Faster-Whisper": whisper_ver,
+        "TorchCodec": codec_ver,
+        "FFmpeg Found": shutil.which("ffmpeg") is not None,
+        "CUDA Available": torch.cuda.is_available(),
+    }
+    
+    # Check for missing FFmpeg libraries if on Linux/Streamlit Cloud
+    if platform.system() == "Linux":
+        try:
+            # Check for libavutil
+            res = subprocess.run(["ldconfig", "-p"], capture_output=True, text=True)
+            results["libavutil"] = "Found" if "libavutil" in res.stdout else "Missing"
+        except:
+            results["libavutil"] = "Unknown (ldconfig failed)"
+
+    return results
+
+def get_system_diagnostics():
+    import torch
+    diag = {
+        "timestamp": datetime.now().isoformat(),
+        "env": check_audio_ai_environment(),
+    }
+    
     # Check HF Token
     hf_token = st.secrets.get("HF_TOKEN", "") or os.environ.get("HF_TOKEN", "")
     diag["hf_token_present"] = bool(hf_token)
@@ -65,9 +103,8 @@ def get_system_diagnostics():
         try:
             from huggingface_hub import HfApi
             api = HfApi(token=hf_token)
-            user = api.whoami()
+            api.whoami()
             diag["hf_token_valid"] = True
-            diag["hf_user"] = user.get("name")
         except Exception as e:
             diag["hf_token_valid"] = False
             diag["hf_error"] = str(e)
