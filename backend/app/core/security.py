@@ -3,32 +3,32 @@ from typing import Any, Union
 from jose import jwt
 import logging
 import bcrypt
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# --- MONKEYPATCH: Fix for passlib and bcrypt 4.x on Python 3.12 ---
-# Passlib performs an internal self-test using a password of 73 bytes to check truncation.
-# Bcrypt 4.x strictly forbids passwords > 72 bytes and throws a ValueError, crashing the app.
-# We monkeypatch the bcrypt module to safely truncate all passwords to 72 bytes.
-_original_hashpw = bcrypt.hashpw
-def _patched_hashpw(password: bytes, salt: bytes) -> bytes:
-    if len(password) > 72:
-        password = password[:72]
-    return _original_hashpw(password, salt)
-bcrypt.hashpw = _patched_hashpw
-# ------------------------------------------------------------------
-
-from passlib.context import CryptContext
-from app.core.config import settings
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        # Direct bcrypt verification
+        password_bytes = plain_password.encode('utf-8')
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except Exception as e:
+        logger.error(f"Password verification error: {e}")
+        return False
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    try:
+        # Direct bcrypt hashing
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password_bytes, salt)
+        return hashed.decode('utf-8')
+    except Exception as e:
+        logger.error(f"Password hashing error: {e}")
+        raise e
 
 def create_access_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
     if expires_delta:
@@ -39,6 +39,3 @@ def create_access_token(subject: Union[str, Any], expires_delta: timedelta = Non
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
-
-
-
