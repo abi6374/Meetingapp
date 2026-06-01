@@ -5,6 +5,8 @@ import time
 import json
 import tempfile
 import math
+import shutil
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -225,23 +227,82 @@ def detect_providers():
 
 # ── Helper: chunk audio file ────────────────────────────────────────────────────
 def chunk_audio(audio_bytes: bytes, chunk_minutes: int = 5) -> list[bytes]:
-    """Split audio into N-minute chunks using pydub."""
+    """Split audio into N-minute WAV chunks using ffmpeg when available.
+
+    Falls back to a single chunk if ffmpeg is unavailable or the conversion fails.
+    This avoids importing pydub, which can emit noisy warnings on some runtimes.
+    """
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        st.info("ffmpeg is not available. Processing audio as a single file.")
+        return [audio_bytes]
+
+    input_path = None
+    output_dir = None
     try:
-        from pydub import AudioSegment
-        audio = AudioSegment.from_file(io.BytesIO(audio_bytes))
-        chunk_ms = chunk_minutes * 60 * 1000
+        with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as input_file:
+            input_file.write(audio_bytes)
+            input_path = input_file.name
+
+        output_dir = tempfile.mkdtemp(prefix="meetingmind_chunks_")
+        segment_pattern = os.path.join(output_dir, "chunk_%03d.wav")
+        segment_seconds = max(30, int(chunk_minutes * 60))
+
+        command = [
+            ffmpeg,
+            "-y",
+            "-i",
+            input_path,
+            "-vn",
+            "-acodec",
+            "pcm_s16le",
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            "-f",
+            "segment",
+            "-segment_time",
+            str(segment_seconds),
+            "-reset_timestamps",
+            "1",
+            segment_pattern,
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "ffmpeg chunking failed")
+
         chunks = []
-        for i in range(0, len(audio), chunk_ms):
-            chunk = audio[i:i + chunk_ms]
-            buf = io.BytesIO()
-            chunk.export(buf, format="wav")
-            chunks.append(buf.getvalue())
-        return chunks
+        for name in sorted(os.listdir(output_dir)):
+            if not name.lower().endswith(".wav"):
+                continue
+            with open(os.path.join(output_dir, name), "rb") as chunk_file:
+                chunks.append(chunk_file.read())
+
+        if chunks:
+            return chunks
+
+        raise RuntimeError("ffmpeg produced no audio chunks")
     except Exception as e:
-        # pydub may fail on some environments (missing backends or optional modules).
-        # Fall back to processing as a single chunk without crashing the app.
         st.info(f"Audio chunking unavailable ({e}). Processing as single file.")
         return [audio_bytes]
+    finally:
+        if input_path:
+            try:
+                os.unlink(input_path)
+            except Exception:
+                pass
+        if output_dir:
+            try:
+                for filename in os.listdir(output_dir):
+                    try:
+                        os.unlink(os.path.join(output_dir, filename))
+                    except Exception:
+                        pass
+                os.rmdir(output_dir)
+            except Exception:
+                pass
 
 # ── Helper: transcribe with faster-whisper (returns list of segments) ─────────
 @st.cache_resource
@@ -760,10 +821,12 @@ with tab_upload:
             if hf:
                 try:
                     from pyannote.audio import Pipeline
+                    from huggingface_hub import login
 
                     @st.cache_resource
                     def load_pyannote(token: str = hf):
-                        return Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=token)
+                        login(token=token)
+                        return Pipeline.from_pretrained("pyannote/speaker-diarization-3.1")
 
                     pipeline = load_pyannote()
                     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
