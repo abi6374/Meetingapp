@@ -266,7 +266,7 @@ def detect_providers():
     if groq_key:
         providers["groq"] = {
             "key": groq_key,
-            "models": ["llama3-8b-8192", "llama3-70b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"],
+            "models": ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "openai/gpt-oss-20b", "openai/gpt-oss-120b"],
         }
 
     # Gemini
@@ -592,6 +592,24 @@ MEETING TRANSCRIPT:
             )
             return resp.choices[0].message.content
         except Exception as e:
+            error_text = str(e)
+            fallback_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b", "openai/gpt-oss-120b"]
+            if "decommissioned" in error_text.lower() or "invalid_request_error" in error_text.lower():
+                for fallback_model in fallback_models:
+                    if fallback_model == model:
+                        continue
+                    try:
+                        from groq import Groq
+                        client = Groq(api_key=providers["groq"]["key"])
+                        resp = client.chat.completions.create(
+                            model=fallback_model,
+                            messages=messages_for_ai,
+                            max_tokens=1500,
+                            temperature=0.3,
+                        )
+                        return resp.choices[0].message.content
+                    except Exception:
+                        continue
             return f"Groq error: {e}"
 
     # ── Gemini ──
