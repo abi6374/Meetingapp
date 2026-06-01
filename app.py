@@ -17,190 +17,23 @@ from datetime import datetime
 from pathlib import Path
 
 # ── Tab Recorder Component ────────────────────────────────────────────────────
-TAB_RECORDER_HTML = """
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <script src="https://cdn.jsdelivr.net/npm/streamlit-component-lib@1.3.0/dist/streamlit.js"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
-    body { font-family: 'DM Sans', sans-serif; color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; background: transparent; }
-    .glass-card {
-      background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      border-radius: 24px;
-      padding: 40px;
-      width: 100%;
-      max-width: 600px;
-      text-align: center;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-    }
-    .status-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); padding: 8px 16px; border-radius: 20px; font-weight: 500; font-size: 0.9rem; margin-bottom: 20px; color: #94a3b8; border: 1px solid rgba(255,255,255,0.05); }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #64748b; }
-    .status-dot.active { background: #10b981; box-shadow: 0 0 10px #10b981; animation: pulse 1.5s infinite; }
-    .status-dot.done { background: #3b82f6; box-shadow: 0 0 10px #3b82f6; }
-    @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.8; } }
-    
-    .timer { font-size: 3rem; font-weight: 300; font-family: 'DM Sans', monospace; margin: 10px 0 10px; color: #e2e8f0; font-variant-numeric: tabular-nums; }
-    .source-info { color: #818cf8; font-size: 0.9rem; margin-bottom: 30px; font-weight: 500; min-height: 20px;}
-    
-    .btn { padding: 16px 32px; border-radius: 14px; border: none; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; width: 80%; display: inline-flex; justify-content: center; align-items: center; gap: 10px; margin: 0 auto; }
-    .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
-    .btn-start { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-    .btn-stop { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; display: none; }
-    .btn-process { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; display: none; }
-    
-    .instructions { color: #94a3b8; font-size: 0.95rem; margin-top: 24px; line-height: 1.5; }
-    .highlight { color: #60a5fa; font-weight: 600; }
-  </style>
-</head>
-<body>
-  <div class="glass-card">
-    <div class="status-badge">
-      <div id="statusDot" class="status-dot"></div>
-      <span id="statusText">Meeting: Ready</span>
-    </div>
-    
-    <div id="timer" class="timer">00:00:00</div>
-    <div id="sourceInfo" class="source-info"></div>
-    
-    <button id="startBtn" class="btn btn-start">▶ Start Meeting</button>
-    <button id="stopBtn" class="btn btn-stop">■ Stop Meeting</button>
-    <button id="processBtn" class="btn btn-process">📊 Process Meeting</button>
-    
-    <div class="instructions" id="instructions">
-      Click Start, select your <b>Meeting Tab</b> (Google Meet, Teams, Zoom),<br>and ensure <span class="highlight">"Share tab audio"</span> is checked.
-    </div>
-  </div>
-
-  <script>
-    let mediaRecorder;
-    let audioChunks = [];
-    let startTime;
-    let timerInterval;
-
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const processBtn = document.getElementById('processBtn');
-    const statusText = document.getElementById('statusText');
-    const statusDot = document.getElementById('statusDot');
-    const timerEl = document.getElementById('timer');
-    const sourceInfo = document.getElementById('sourceInfo');
-    const instructionsEl = document.getElementById('instructions');
-
-    function updateTimer() {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
-      const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
-      const s = String(elapsed % 60).padStart(2, '0');
-      timerEl.textContent = `${h}:${m}:${s}`;
-    }
-
-    startBtn.onclick = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
-        });
-
-        const audioTracks = stream.getAudioTracks();
-        const videoTracks = stream.getVideoTracks();
-        if (audioTracks.length === 0) {
-          alert("No audio track found. Please ensure 'Share tab audio' is checked.");
-          stream.getTracks().forEach(t => t.stop());
-          return;
-        }
-
-        const audioStream = new MediaStream(audioTracks);
-        mediaRecorder = new MediaRecorder(audioStream);
-        audioChunks = [];
-
-        mediaRecorder.ondataavailable = e => {
-          if (e.data.size > 0) audioChunks.push(e.data);
-        };
-
-        mediaRecorder.onstop = () => {
-          clearInterval(timerInterval);
-          stream.getTracks().forEach(t => t.stop());
-          
-          statusText.textContent = "Recording Completed";
-          statusDot.className = "status-dot done";
-          startBtn.style.display = 'none';
-          stopBtn.style.display = 'none';
-          processBtn.style.display = 'inline-flex';
-          sourceInfo.textContent = "Audio Captured Successfully";
-          
-          instructionsEl.style.display = 'block';
-          instructionsEl.innerHTML = "Click <b>Process Meeting</b> to extract intelligence.";
-        };
-
-        if (videoTracks.length > 0) {
-            videoTracks[0].onended = () => {
-                if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-            };
-            sourceInfo.textContent = `Input: ${videoTracks[0].label || 'Browser Tab'}`;
-        } else {
-            sourceInfo.textContent = `Input: System Audio`;
-        }
-
-        mediaRecorder.start(1000);
-        startTime = Date.now();
-        timerInterval = setInterval(updateTimer, 1000);
-
-        statusText.textContent = "Recording Meeting";
-        statusDot.className = "status-dot active";
-        startBtn.style.display = 'none';
-        stopBtn.style.display = 'inline-flex';
-        instructionsEl.style.display = 'none';
-
-      } catch (err) {
-        console.error("Capture error:", err);
-        statusText.textContent = "Capture Cancelled";
-        statusDot.className = "status-dot";
-        instructionsEl.innerHTML = `<span style="color:#ef4444">Error: ${err.message}</span><br>Ensure you select a tab and share audio.`;
-      }
-    };
-
-    stopBtn.onclick = () => {
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-    };
-
-    processBtn.onclick = async () => {
-      processBtn.disabled = true;
-      processBtn.textContent = "Processing...";
-      
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      
-      let binary = '';
-      const chunkSize = 8192;
-      for (let i = 0; i < uint8Array.length; i += chunkSize) {
-        binary += String.fromCharCode.apply(null, uint8Array.subarray(i, i + chunkSize));
-      }
-      const base64Audio = window.btoa(binary);
-
-      Streamlit.setComponentValue({
-        action: "process",
-        audio_base64: base64Audio,
-        duration: timerEl.textContent
-      });
-    };
-
-    function onRender(event) { Streamlit.setFrameHeight(450); }
-    Streamlit.events.addEventListener(Streamlit.RENDER_EVENT, onRender);
-    Streamlit.setComponentReady();
-    Streamlit.setFrameHeight(450);
-  </script>
-</body>
-</html>
-"""
-
-COMPONENT_DIR = Path(__file__).parent / "meeting_recorder"
+# This component captures browser tab audio using getDisplayMedia
+COMPONENT_DIR = Path(__file__).parent.absolute() / "meeting_recorder"
 COMPONENT_DIR.mkdir(exist_ok=True)
-(COMPONENT_DIR / "index.html").write_text(TAB_RECORDER_HTML, encoding="utf-8")
+
+# index.html content is already written by the setup step, 
+# but we keep a reference to the HTML for consistency.
 tab_recorder_component = components.declare_component("tab_recorder", path=str(COMPONENT_DIR))
+
+def render_tab_recorder():
+    """Renders the custom tab audio recorder with a fallback message."""
+    try:
+        data = tab_recorder_component(key="tab_audio_recorder")
+        return data
+    except Exception as e:
+        st.error(f"Failed to load the meeting recorder component: {e}")
+        st.info("Try refreshing the page. Ensure you are using a modern browser (Chrome, Edge).")
+        return None
 
 
 # ── torchaudio Monkeypatch ────────────────────────────────────────────────────
@@ -1091,7 +924,7 @@ with tab_live:
         <p class="live-subtitle">Capture browser audio from Google Meet, Teams, or Zoom.</p>
     """, unsafe_allow_html=True)
 
-    recorder_data = tab_recorder_component(key="tab_audio_recorder")
+    recorder_data = render_tab_recorder()
     
     if recorder_data and recorder_data.get("action") == "process":
         if "audio_base64" in recorder_data:
@@ -1099,37 +932,43 @@ with tab_live:
             duration = recorder_data["duration"]
             audio_bytes = base64.b64decode(audio_b64)
             
-            st.session_state.live_audio_data = audio_bytes
-            st.success(f"✅ Audio captured successfully. Duration: {duration}")
-            
-            # Immediately trigger processing
-            process_audio_bytes(audio_bytes, whisper_lang, chunk_size)
-            
-            # Post-processing Meeting Intelligence Extraction
-            st.success("Audio processed! Extracting Meeting Intelligence...")
-            provider = st.session_state.ai_provider if st.session_state.ai_provider != "auto" else provider_choice or next(iter(providers), None)
-            model = st.session_state.selected_model or model_choice
-            
-            if provider and st.session_state.transcript:
-                with st.spinner("Generating AI Summary, Actions, and Decisions..."):
-                    speakers_list = ", ".join(st.session_state.speakers) if st.session_state.get("speakers") else "TBD"
-                    tagged_transcript = build_speaker_transcript(st.session_state.transcript_segments) if st.session_state.transcript_segments else st.session_state.transcript
-                    
-                    mom_text = generate_mom_cached(
-                        title=st.session_state.get("meeting_title", "Live Meeting"),
-                        date=st.session_state.get("meeting_date", ""),
-                        duration=duration,
-                        speakers=speakers_list,
-                        transcript=tagged_transcript,
-                        actions=st.session_state.get("action_items", []),
-                        provider=provider,
-                        model=model,
-                        providers=providers,
-                    )
-                    st.session_state.mom = mom_text
-                st.success("Meeting Intelligence generated! Check the Minutes tab.")
+            # Prevent double-processing if component re-renders
+            if st.session_state.get("last_processed_duration") != duration:
+                st.session_state.live_audio_data = audio_bytes
+                st.session_state.last_processed_duration = duration
+                
+                st.success(f"✅ Audio captured successfully. Duration: {duration}")
+                
+                # Immediately trigger processing
+                process_audio_bytes(audio_bytes, whisper_lang, chunk_size)
+                
+                # Post-processing Meeting Intelligence Extraction
+                st.success("Audio processed! Extracting Meeting Intelligence...")
+                provider = st.session_state.ai_provider if st.session_state.ai_provider != "auto" else provider_choice or next(iter(providers), None)
+                model = st.session_state.selected_model or model_choice
+                
+                if provider and st.session_state.transcript:
+                    with st.spinner("Generating AI Summary, Actions, and Decisions..."):
+                        speakers_list = ", ".join(st.session_state.speakers) if st.session_state.get("speakers") else "TBD"
+                        tagged_transcript = build_speaker_transcript(st.session_state.transcript_segments) if st.session_state.transcript_segments else st.session_state.transcript
+                        
+                        mom_text = generate_mom_cached(
+                            title=st.session_state.get("meeting_title", "Live Meeting"),
+                            date=st.session_state.get("meeting_date", ""),
+                            duration=duration,
+                            speakers=speakers_list,
+                            transcript=tagged_transcript,
+                            actions=st.session_state.get("action_items", []),
+                            provider=provider,
+                            model=model,
+                            providers=providers,
+                        )
+                        st.session_state.mom = mom_text
+                    st.success("Meeting Intelligence generated! Check the Minutes tab.")
+                else:
+                    st.info("Check the Transcript tab for results. Configure an AI Provider in the sidebar to generate Minutes.")
             else:
-                st.info("Check the Transcript tab for results. Configure an AI Provider in the sidebar to generate Minutes.")
+                st.info(f"Processing complete for session: {duration}")
 
 with tab_upload:
     uploaded = st.file_uploader("Upload audio", type=["mp3", "wav", "m4a", "ogg"])

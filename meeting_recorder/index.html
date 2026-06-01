@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/streamlit-component-lib@1.3.0/dist/streamlit.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+    body { font-family: 'DM Sans', sans-serif; color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; background: transparent; }
+    .glass-card {
+      background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 24px;
+      padding: 40px;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    }
+    .status-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); padding: 8px 16px; border-radius: 20px; font-weight: 500; font-size: 0.9rem; margin-bottom: 20px; color: #94a3b8; border: 1px solid rgba(255,255,255,0.05); }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #64748b; }
+    .status-dot.active { background: #10b981; box-shadow: 0 0 10px #10b981; animation: pulse 1.5s infinite; }
+    .status-dot.done { background: #3b82f6; box-shadow: 0 0 10px #3b82f6; }
+    @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.8; } }
+    
+    .timer { font-size: 3rem; font-weight: 300; font-family: 'DM Sans', monospace; margin: 10px 0 10px; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+    .source-info { color: #818cf8; font-size: 0.9rem; margin-bottom: 30px; font-weight: 500; min-height: 20px;}
+    
+    .btn { padding: 16px 32px; border-radius: 14px; border: none; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; width: 80%; display: inline-flex; justify-content: center; align-items: center; gap: 10px; margin: 0 auto; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+    .btn-start { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .btn-stop { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; display: none; }
+    .btn-process { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; display: none; }
+    
+    .instructions { color: #94a3b8; font-size: 0.95rem; margin-top: 24px; line-height: 1.5; }
+    .highlight { color: #60a5fa; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="glass-card">
+    <div class="status-badge">
+      <div id="statusDot" class="status-dot"></div>
+      <span id="statusText">Meeting: Ready</span>
+    </div>
+    
+    <div id="timer" class="timer">00:00:00</div>
+    <div id="sourceInfo" class="source-info"></div>
+    
+    <button id="startBtn" class="btn btn-start">▶ Start Meeting</button>
+    <button id="stopBtn" class="btn btn-stop">■ Stop Meeting</button>
+    <button id="processBtn" class="btn btn-process">📊 Process Meeting</button>
+    
+    <div class="instructions" id="instructions">
+      Click Start, select your <b>Meeting Tab</b> (Google Meet, Teams, Zoom),<br>and ensure <span class="highlight">"Share tab audio"</span> is checked.
+    </div>
+  </div>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let startTime;
+    let timerInterval;
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const processBtn = document.getElementById('processBtn');
+    const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
+    const timerEl = document.getElementById('timer');
+    const sourceInfo = document.getElementById('sourceInfo');
+    const instructionsEl = document.getElementById('instructions');
+
+    function updateTimer() {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+      const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+      const s = String(elapsed % 60).padStart(2, '0');
+      timerEl.textContent = `${h}:${m}:${s}`;
+    }
+
+    startBtn.onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        });
+
+        const audioTracks = stream.getAudioTracks();
+        const videoTracks = stream.getVideoTracks();
+        if (audioTracks.length === 0) {
+          alert("No audio track found. Please ensure 'Share tab audio' is checked.");
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+
+        const audioStream = new MediaStream(audioTracks);
+        mediaRecorder = new MediaRecorder(audioStream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          clearInterval(timerInterval);
+          stream.getTracks().forEach(t => t.stop());
+          
+          statusText.textContent = "Recording Completed";
+          statusDot.className = "status-dot done";
+          startBtn.style.display = 'none';
+          stopBtn.style.display = 'none';
+          processBtn.style.display = 'inline-flex';
+          sourceInfo.textContent = "Audio Captured Successfully";
+          
+          instructionsEl.style.display = 'block';
+          instructionsEl.innerHTML = "Click <b>Process Meeting</b> to extract intelligence.";
+        };
+
+        if (videoTracks.length > 0) {
+            videoTracks[0].onended = () => {
+                if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+            };
+            sourceInfo.textContent = `Input: ${videoTracks[0].label || 'Browser Tab'}`;
+        } else {
+            sourceInfo.textContent = `Input: System Audio`;
+        }
+
+        mediaRecorder.start(1000);
+        startTime = Date.now();
+        timerInterval = setInterval(updateTimer, 1000);
+
+        statusText.textContent = "Recording Meeting";
+        statusDot.className = "status-dot active";
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-flex';
+        instructionsEl.style.display = 'none';
+
+      } catch (err) {
+        console.error("Capture error:", err);
+        statusText.textContent = "Capture Cancelled";
+        statusDot.className = "status-dot";
+        instructionsEl.innerHTML = `<span style="color:#ef4444">Error: ${err.message}</span><br>Ensure you select a tab and share audio.`;
+      }
+    };
+
+    stopBtn.onclick = () => {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    };
+
+    processBtn.onclick = async () => {
+      processBtn.disabled = true;
+      processBtn.textContent = "Processing...";
+      
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, uint8Array.subarray(i, i + chunkSize));
+      }
+      const base64Audio = window.btoa(binary);
+
+      window.Streamlit.setComponentValue({
+        action: "process",
+        audio_base64: base64Audio,
+        duration: timerEl.textContent
+      });
+    };
+
+    function onRender(event) {
+        window.Streamlit.setFrameHeight(450);
+    }
+    
+    // Safety check for Streamlit library
+    if (window.Streamlit) {
+        window.Streamlit.events.addEventListener(window.Streamlit.RENDER_EVENT, onRender);
+        window.Streamlit.setComponentReady();
+    } else {
+        // Fallback for slow JS load
+        const checkST = setInterval(() => {
+            if (window.Streamlit) {
+                window.Streamlit.events.addEventListener(window.Streamlit.RENDER_EVENT, onRender);
+                window.Streamlit.setComponentReady();
+                clearInterval(checkST);
+            }
+        }, 100);
+    }
+  </script>
+</body>
+</html>
