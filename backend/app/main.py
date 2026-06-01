@@ -8,7 +8,11 @@ app = FastAPI(title=settings.APP_NAME)
 # CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], # Add production domain later
+    allow_origins=[
+        "http://localhost:3000", 
+        "https://meetingmind.vercel.app", 
+        "*" # Allow all origins temporarily to ensure smooth Vercel deployment without CORS issues
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
