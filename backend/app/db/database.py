@@ -5,8 +5,8 @@ import os
 
 # Render persistent disk or local fallback
 if os.environ.get("RENDER"):
-    # This matches the mount path in your render.yaml and Dockerfile WORKDIR
-    SQLALCHEMY_DATABASE_URL = "sqlite:////app/meetingmind.db"
+    # Store the database in the dedicated persistent /data folder
+    SQLALCHEMY_DATABASE_URL = "sqlite:////data/meetingmind.db"
 else:
     # Local development path
     BASE_DIR = Path(__file__).resolve().parent.parent.parent
