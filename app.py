@@ -238,6 +238,7 @@ def init_state():
         "mom": "",
         "pdf_bytes": None,
         "docx_bytes": None,
+        "live_audio": None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -477,6 +478,73 @@ def build_speaker_transcript(segments: list) -> str:
         text = s.get("text", "").replace("\n", " ")
         lines.append(f"[{ts}] {name}: {text}")
     return "\n".join(lines)
+
+
+def process_audio_bytes(audio_bytes: bytes, language: str, chunk_minutes: int, enable_diarization: bool = True) -> None:
+    """Run chunking, transcription, and optional diarization, updating session state in place."""
+    st.session_state.processing = True
+    st.session_state.transcript = ""
+    st.session_state.transcript_segments = []
+    st.session_state.diarization = None
+    st.session_state.speakers = []
+    st.session_state.action_items = []
+
+    with st.spinner("Chunking audio..."):
+        chunks = chunk_audio(audio_bytes, chunk_minutes=chunk_minutes)
+
+    total_segments = []
+    progress = st.progress(0)
+    for i, chunk in enumerate(chunks):
+        segs = transcribe_chunk(chunk, language=language)
+        if isinstance(segs, list):
+            total_segments.extend(segs)
+        else:
+            total_segments.append({"text": str(segs), "start": 0.0, "end": 0.0})
+        progress.progress((i + 1) / len(chunks))
+
+    st.session_state.transcript_segments = total_segments
+    st.session_state.transcript = "\n\n".join(s.get("text", "") for s in total_segments)
+    st.session_state.action_items = extract_action_items(st.session_state.transcript)
+
+    if enable_diarization:
+        hf = st.secrets.get("HF_TOKEN", "") or os.environ.get("HF_TOKEN", "")
+        if hf:
+            try:
+                from pyannote.audio import Pipeline
+                from huggingface_hub import login
+
+                @st.cache_resource
+                def load_pyannote(token: str = hf):
+                    login(token=token)
+                    return Pipeline.from_pretrained("pyannote/speaker-diarization-3.1")
+
+                pipeline = load_pyannote()
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                    f.write(audio_bytes)
+                    wav_path = f.name
+                diar = pipeline(wav_path)
+                speakers = []
+                diar_segments = []
+                for turn, track in diar.itertracks(yield_label=True):
+                    s_start = float(turn.start)
+                    s_end = float(turn.end)
+                    speakers.append(track)
+                    diar_segments.append({"start": s_start, "end": s_end, "speaker": track})
+
+                speakers = sorted(set(speakers))
+                st.session_state.diarization = diar_segments
+                st.session_state.speakers = speakers
+                st.session_state.speaker_map = {s: s for s in speakers}
+                st.session_state.transcript_segments = map_segments_to_speakers(
+                    st.session_state.transcript_segments,
+                    st.session_state.diarization,
+                )
+            except Exception as e:
+                st.warning(f"Speaker diarization failed: {e}")
+        else:
+            st.warning("HF_TOKEN not set — diarization disabled. Add HF_TOKEN in secrets to enable.")
+
+    st.session_state.processing = False
 
 # ── Helper: call AI for Q&A ────────────────────────────────────────────────────
 def ask_ai(question: str, transcript: str, history: list, provider: str, model: str, providers: dict) -> str:
@@ -864,14 +932,23 @@ with tab_live:
                 st.audio(audio_live)
 
             if st.session_state.live_recording:
-                stop_disabled = st.session_state.live_audio is None
+                stop_disabled = st.session_state.get("live_audio") is None
                 stop_label = "Stop & Process"
                 if st.button(stop_label, use_container_width=True, disabled=stop_disabled):
                     st.session_state.live_recording = False
                     st.session_state.live_end = time.time()
-                    if st.session_state.live_audio:
+                    if st.session_state.get("live_audio"):
                         st.session_state.audio_bytes = st.session_state.live_audio
-                    st.success("Meeting stopped. Go to Upload & Process to transcribe.")
+                        with st.spinner("Processing live recording..."):
+                            process_audio_bytes(
+                                st.session_state.audio_bytes,
+                                language=whisper_lang,
+                                chunk_minutes=chunk_size,
+                                enable_diarization=True,
+                            )
+                        st.success("Meeting stopped and processed.")
+                    else:
+                        st.warning("No audio captured yet. Tap the mic button first.")
         except ImportError:
             st.warning("Install `audio-recorder-streamlit` for live recording. Use Upload tab instead.")
 
@@ -898,73 +975,14 @@ with tab_upload:
     if st.session_state.audio_bytes:
         st.markdown("---")
         if st.button("Process: Transcribe + Diarize", use_container_width=True, type="primary"):
-            st.session_state.processing = True
-            st.session_state.transcript = ""
-            st.session_state.transcript_segments = []
-            with st.spinner("Chunking audio..."):
-                chunks = chunk_audio(st.session_state.audio_bytes, chunk_minutes=chunk_size)
-
-            total_segments = []
-            pbar = st.progress(0)
-            for i, chunk in enumerate(chunks):
-                segs = transcribe_chunk(chunk, language=whisper_lang)
-                if isinstance(segs, list):
-                    for s in segs:
-                        total_segments.append(s)
-                else:
-                    total_segments.append({"text": str(segs), "start": 0.0, "end": 0.0})
-                pbar.progress((i + 1) / len(chunks))
-
-            st.session_state.transcript_segments = total_segments
-            st.session_state.transcript = "\n\n".join(s.get("text", "") for s in total_segments)
-
-
-            # Attempt diarization
-            hf = st.secrets.get("HF_TOKEN", "") or os.environ.get("HF_TOKEN", "")
-            if hf:
-                try:
-                    from pyannote.audio import Pipeline
-                    from huggingface_hub import login
-
-                    @st.cache_resource
-                    def load_pyannote(token: str = hf):
-                        login(token=token)
-                        return Pipeline.from_pretrained("pyannote/speaker-diarization-3.1")
-
-                    pipeline = load_pyannote()
-                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-                        f.write(st.session_state.audio_bytes)
-                        wav_path = f.name
-                    diar = pipeline(wav_path)
-                    # diar is a pyannote.core.Annotation: iterate segments
-                    speakers = []
-                    diar_segments = []
-                    for turn, track in diar.itertracks(yield_label=True):
-                        s_start = float(turn.start)
-                        s_end = float(turn.end)
-                        label = track
-                        speakers.append(label)
-                        diar_segments.append({"start": s_start, "end": s_end, "speaker": label})
-
-                    speakers = sorted(list(set(speakers)))
-                    # Map speakers to friendly names
-                    st.session_state.diarization = diar_segments
-                    st.session_state.speakers = speakers
-                    st.session_state.speaker_map = {s: s for s in speakers}
-                    # Map transcript segments to speakers by overlap
-                    mapped = map_segments_to_speakers(st.session_state.transcript_segments, st.session_state.diarization)
-                    st.session_state.transcript_segments = mapped
-                    st.session_state.action_items = extract_action_items(st.session_state.transcript)
-                    st.success(f"Diarization complete — {len(speakers)} speakers detected")
-                except Exception as e:
-                    st.warning(f"Speaker diarization failed: {e}")
-                    st.session_state.diarization = None
-            else:
-                st.warning("HF_TOKEN not set — diarization disabled. Add HF_TOKEN in secrets to enable.")
-                # Still extract actions from transcript
-                st.session_state.action_items = extract_action_items(st.session_state.transcript)
-
-            st.session_state.processing = False
+            with st.spinner("Processing uploaded audio..."):
+                process_audio_bytes(
+                    st.session_state.audio_bytes,
+                    language=whisper_lang,
+                    chunk_minutes=chunk_size,
+                    enable_diarization=True,
+                )
+            st.success("Audio processed successfully.")
 
 
 # -----------------------------
