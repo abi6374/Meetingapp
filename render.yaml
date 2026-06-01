@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: meetingmind-backend
+    env: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free # Change this to 'starter' or 'standard' if you need more RAM (e.g. for Diarization)
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: WHISPER_MODEL
+        value: "tiny" # Crucial for the free tier memory limits
+      - key: GROQ_API_KEY
+        sync: false # You will input this manually in the Render Dashboard
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: HF_TOKEN
+        sync: false
+    disk:
+      name: sqlite-data
+      mountPath: /app
+      sizeGB: 1
