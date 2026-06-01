@@ -238,7 +238,9 @@ def chunk_audio(audio_bytes: bytes, chunk_minutes: int = 5) -> list[bytes]:
             chunks.append(buf.getvalue())
         return chunks
     except Exception as e:
-        st.warning(f"Audio chunking failed ({e}), processing as single file.")
+        # pydub may fail on some environments (missing backends or optional modules).
+        # Fall back to processing as a single chunk without crashing the app.
+        st.info(f"Audio chunking unavailable ({e}). Processing as single file.")
         return [audio_bytes]
 
 # ── Helper: transcribe with faster-whisper (returns list of segments) ─────────
@@ -693,7 +695,11 @@ with tab_live:
                     st.session_state.live_recording = True
                     st.session_state.live_start = time.time()
                     st.session_state.audio_bytes = None
-                    st.experimental_rerun()
+                    try:
+                        st.experimental_rerun()
+                    except Exception:
+                        # older/newer Streamlit builds may not expose experimental_rerun
+                        pass
             else:
                 if st.button("Stop & Process", use_container_width=True):
                     st.session_state.live_recording = False
