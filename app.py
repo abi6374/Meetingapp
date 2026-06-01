@@ -175,6 +175,14 @@ def init_state():
         "meeting_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "ai_provider": "auto",
         "selected_model": "",
+        "transcript_segments": [],
+        "diarization": None,
+        "speakers": [],
+        "speaker_map": {},
+        "action_items": [],
+        "mom": "",
+        "pdf_bytes": None,
+        "docx_bytes": None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -233,30 +241,126 @@ def chunk_audio(audio_bytes: bytes, chunk_minutes: int = 5) -> list[bytes]:
         st.warning(f"Audio chunking failed ({e}), processing as single file.")
         return [audio_bytes]
 
-# ── Helper: transcribe with faster-whisper ──────────────────────────────────────
-def transcribe_chunk(audio_bytes: bytes, language: str = "auto") -> str:
+# ── Helper: transcribe with faster-whisper (returns list of segments) ─────────
+@st.cache_resource
+def load_whisper(model_name: str = "base"):
     try:
         from faster_whisper import WhisperModel
-        if "whisper_model" not in st.session_state:
-            with st.spinner("Loading Whisper model (first time only)..."):
-                st.session_state.whisper_model = WhisperModel(
-                    "base", device="cpu", compute_type="int8"
-                )
-        model = st.session_state.whisper_model
+        return WhisperModel(model_name, device="cpu", compute_type="int8")
+    except Exception:
+        return None
+
+
+def transcribe_chunk(audio_bytes: bytes, language: str = "auto", model_name: str = "base") -> list:
+    try:
+        model = load_whisper(model_name)
+        if model is None:
+            return [{"text": "[faster-whisper not installed or failed to load]", "start": 0.0, "end": 0.0}]
+
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
             f.write(audio_bytes)
             tmp_path = f.name
+
         kwargs = {}
         if language != "auto":
             kwargs["language"] = language
+
         segments, _ = model.transcribe(tmp_path, beam_size=5, **kwargs)
-        text = " ".join(seg.text.strip() for seg in segments)
-        os.unlink(tmp_path)
-        return text
+        out = []
+        for seg in segments:
+            start = float(getattr(seg, "start", 0.0))
+            end = float(getattr(seg, "end", 0.0))
+            text = getattr(seg, "text", "").strip()
+            out.append({"text": text, "start": start, "end": end})
+
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+        return out
     except ImportError:
-        return "[faster-whisper not installed. Run: pip install faster-whisper]"
+        return [{"text": "[faster-whisper not installed. Run: pip install faster-whisper]", "start": 0.0, "end": 0.0}]
     except Exception as e:
-        return f"[Transcription error: {e}]"
+        return [{"text": f"[Transcription error: {e}]", "start": 0.0, "end": 0.0}]
+
+
+
+def map_segments_to_speakers(segments: list, diarization: list, unknown_label: str = "Unknown Speaker") -> list:
+    """Assign a speaker to each transcript segment by maximizing temporal overlap.
+    segments: list of {text,start,end}
+    diarization: list of {start,end,speaker}
+    Returns list of segments with added 'speaker' key.
+    """
+    if not diarization:
+        for s in segments:
+            s["speaker"] = unknown_label
+        return segments
+
+    # build list of diar segments
+    diar = diarization
+    for s in segments:
+        s_start = s.get("start", 0.0)
+        s_end = s.get("end", 0.0)
+        best_sp = unknown_label
+        best_overlap = 0.0
+        seg_dur = max(0.0, s_end - s_start)
+        for d in diar:
+            d_start = d.get("start", 0.0)
+            d_end = d.get("end", 0.0)
+            overlap = max(0.0, min(s_end, d_end) - max(s_start, d_start))
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_sp = d.get("speaker", unknown_label)
+
+        # if overlap is tiny relative to segment, mark unknown
+        if seg_dur > 0 and best_overlap / seg_dur < 0.2:
+            s["speaker"] = unknown_label
+        else:
+            s["speaker"] = best_sp
+    return segments
+
+
+def extract_action_items(transcript: str) -> list:
+    """Heuristic extraction of action items from transcript text.
+    Returns list of short action strings.
+    """
+    actions = []
+    # split into sentences
+    import re
+    sents = re.split(r"(?<=[\.!?])\s+", transcript)
+    action_keywords = ["action", "will", "assign", "todo", "due", "deadline", "deliver", "implement", "follow up", "follow-up", "owner"]
+    for sent in sents:
+        low = sent.lower()
+        if any(kw in low for kw in action_keywords):
+            txt = sent.strip()
+            if len(txt) > 10:
+                actions.append(txt)
+    # deduplicate
+    seen = set()
+    out = []
+    for a in actions:
+        if a not in seen:
+            seen.add(a)
+            out.append(a)
+    return out
+
+
+def build_speaker_transcript(segments: list) -> str:
+    """Build a speaker-tagged transcript from segments with speaker info.
+    Each line: [HH:MM:SS] Speaker: text
+    """
+    lines = []
+    for s in sorted(segments, key=lambda x: x.get("start", 0.0)):
+        start = int(s.get("start", 0.0))
+        hh = start // 3600
+        mm = (start % 3600) // 60
+        ss = start % 60
+        ts = f"{hh:02d}:{mm:02d}:{ss:02d}"
+        sp = s.get("speaker") or "Unknown"
+        name = st.session_state.speaker_map.get(sp, sp) if "speaker_map" in st.session_state else sp
+        text = s.get("text", "").replace("\n", " ")
+        lines.append(f"[{ts}] {name}: {text}")
+    return "\n".join(lines)
 
 # ── Helper: call AI for Q&A ────────────────────────────────────────────────────
 def ask_ai(question: str, transcript: str, history: list, provider: str, model: str, providers: dict) -> str:
@@ -327,6 +431,104 @@ MEETING TRANSCRIPT:
             return f"Gemini error: {e}"
 
     return "No AI provider available. Please configure an API key in secrets."
+
+
+MOM_PROMPT = """
+You are a professional meeting secretary. Based on the transcript below, generate a structured Minutes of Meeting document.
+
+Use EXACTLY this format:
+
+# Minutes of Meeting
+**Meeting Title:** {title}
+**Date & Time:** {date}
+**Duration:** {duration}
+**Attendees:** {speakers}
+
+## 1. Executive Summary
+[2-3 sentence overview of the meeting purpose and outcome]
+
+## 2. Key Discussion Points
+[Bullet points of main topics discussed, grouped by theme]
+
+## 3. Decisions Made
+[Numbered list of all decisions taken]
+
+## 4. Action Items
+| # | Action | Owner | Deadline |
+|---|--------|-------|----------|
+[Extract every task/action item mentioned, assign to the speaker who agreed to it]
+
+## 5. Next Steps
+[What happens after this meeting]
+
+## 6. Next Meeting
+[Date/time if mentioned, otherwise "TBD"]
+
+TRANSCRIPT:
+{transcript}
+"""
+
+
+@st.cache_data(ttl=3600)
+def generate_mom_cached(title: str, date: str, duration: str, speakers: str, transcript: str, actions: list, provider: str, model: str, providers: dict) -> str:
+    prompt = MOM_PROMPT.format(title=title, date=date, duration=duration, speakers=speakers, transcript=transcript)
+    # Append extracted actions to help the AI
+    if actions:
+        prompt = prompt + "\n\nEXTRACTED_ACTIONS:\n" + "\n".join(f"- {a}" for a in actions)
+    # Use ask_ai to generate the MoM
+    return ask_ai(prompt, transcript, [], provider, model, providers)
+
+
+def export_pdf(mom_text: str, logo_bytes: bytes | None = None) -> bytes:
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import mm
+        from reportlab.pdfgen import canvas
+        buf = io.BytesIO()
+        c = canvas.Canvas(buf, pagesize=A4)
+        width, height = A4
+        # Logo
+        if logo_bytes:
+            from reportlab.lib.utils import ImageReader
+            img = ImageReader(io.BytesIO(logo_bytes))
+            c.drawImage(img, 15 * mm, height - 35 * mm, width=30 * mm, preserveAspectRatio=True, mask='auto')
+
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(50 * mm, height - 20 * mm, "Minutes of Meeting")
+        c.setFont("Helvetica", 10)
+        text = c.beginText(15 * mm, height - 45 * mm)
+        for line in mom_text.splitlines():
+            text.textLine(line)
+        c.drawText(text)
+        c.showPage()
+        c.save()
+        buf.seek(0)
+        return buf.read()
+    except Exception as e:
+        st.error(f"PDF export failed: {e}")
+        return b""
+
+
+def export_docx(mom_text: str) -> bytes:
+    try:
+        from docx import Document
+        from docx.shared import Pt
+        doc = Document()
+        for line in mom_text.splitlines():
+            if line.startswith('# '):
+                doc.add_heading(line.replace('# ', ''), level=1)
+            elif line.startswith('## '):
+                doc.add_heading(line.replace('## ', ''), level=2)
+            else:
+                p = doc.add_paragraph(line)
+                p.style.font.size = Pt(10)
+        buf = io.BytesIO()
+        doc.save(buf)
+        buf.seek(0)
+        return buf.read()
+    except Exception as e:
+        st.error(f"DOCX export failed: {e}")
+        return b""
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
@@ -411,6 +613,39 @@ with st.sidebar:
             use_container_width=True,
         )
 
+    # Company logo for PDF header
+    st.markdown("---")
+    st.markdown("**Letterhead / Logo (optional)**")
+    logo = st.file_uploader("Upload logo (PNG/JPG)", type=["png", "jpg", "jpeg"], key="logo_upload")
+    if logo:
+        st.session_state.logo_bytes = logo.read()
+
+    # Speaker rename & talk-time (when diarization exists)
+    if st.session_state.diarization:
+        st.markdown("---")
+        st.markdown("**Speaker Renames**")
+        for s in st.session_state.speakers:
+            key = f"rename_{s}"
+            newname = st.text_input(f"{s} →", value=st.session_state.speaker_map.get(s, s), key=key)
+            st.session_state.speaker_map[s] = newname
+
+        # Talk-time stats
+        st.markdown("**Talk-time**")
+        # compute durations
+        durations = {}
+        total_time = 0.0
+        for seg in st.session_state.diarization:
+            sp = seg.get("speaker")
+            dur = max(0.0, seg.get("end", 0.0) - seg.get("start", 0.0))
+            durations[sp] = durations.get(sp, 0.0) + dur
+            total_time += dur
+        if total_time > 0:
+            for sp, sec in sorted(durations.items(), key=lambda x: -x[1]):
+                name = st.session_state.speaker_map.get(sp, sp)
+                pct = sec / total_time
+                st.markdown(f"**{name}** — {int(sec)}s ({pct*100:.1f}%)")
+                st.progress(pct)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN HEADER
@@ -430,238 +665,260 @@ st.markdown("""
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS
 # ══════════════════════════════════════════════════════════════════════════════
-tab1, tab2, tab3 = st.tabs(["🎙 Record & Transcribe", "💬 Ask Questions", "📋 Transcript"])
+tab_live, tab_upload, tab_transcript, tab_mom = st.tabs([
+    "🔴 Live Meeting",
+    "📁 Upload & Process",
+    "📋 Transcript",
+    "📄 Minutes & Export",
+])
 
-# ────────────────────────────────────────────────────────────────────────────
-# TAB 1 — Record & Transcribe
-# ────────────────────────────────────────────────────────────────────────────
-with tab1:
-    col1, col2 = st.columns([1, 1], gap="large")
 
-    with col1:
-        st.markdown("#### 🎙 Live Recording")
-        st.caption("Record directly in your browser")
+# -----------------------------
+# TAB: Live Meeting
+# -----------------------------
+with tab_live:
+    st.header("🔴 Live Meeting Mode")
+    col_left, col_right = st.columns([3, 1])
+    with col_left:
+        st.markdown("### Live recording and waveform")
         try:
             from audio_recorder_streamlit import audio_recorder
-            audio_bytes_live = audio_recorder(
-                text="Click to record",
-                recording_color="#6366f1",
-                neutral_color="#334155",
-                icon_size="2x",
-                pause_threshold=3.0,
-                sample_rate=16000,
-            )
-            if audio_bytes_live:
-                st.session_state.audio_bytes = audio_bytes_live
-                st.success(f"Recorded {len(audio_bytes_live)/1024:.1f} KB")
-                st.audio(audio_bytes_live, format="audio/wav")
-        except ImportError:
-            st.warning("`audio-recorder-streamlit` not installed. Use file upload below.")
-            audio_bytes_live = None
 
-    with col2:
-        st.markdown("#### 📁 Upload Audio File")
-        st.caption("MP3, WAV, M4A, OGG, FLAC, WEBM")
-        uploaded = st.file_uploader(
-            "Upload",
-            type=["mp3", "wav", "m4a", "ogg", "flac", "webm", "mp4"],
-            label_visibility="collapsed",
-        )
-        if uploaded:
-            st.session_state.audio_bytes = uploaded.read()
-            st.success(f"Uploaded: {uploaded.name} ({len(st.session_state.audio_bytes)/1024:.1f} KB)")
-            st.audio(st.session_state.audio_bytes)
+            if "live_recording" not in st.session_state:
+                st.session_state.live_recording = False
+                st.session_state.live_start = None
 
-    st.divider()
-
-    # Transcribe button
-    if st.session_state.audio_bytes:
-        audio_size_mb = len(st.session_state.audio_bytes) / (1024 * 1024)
-        st.info(f"Audio ready: **{audio_size_mb:.2f} MB** — will be split into **~{chunk_size}-min chunks** for reliable processing.")
-
-        if st.button("🔊 Transcribe Audio", type="primary", use_container_width=True):
-            st.session_state.transcript = ""
-            st.session_state.transcript_chunks = []
-
-            with st.status("Processing audio...", expanded=True) as status_box:
-                # Step 1: Chunk
-                st.write("✂️ Splitting audio into chunks...")
-                chunks = chunk_audio(st.session_state.audio_bytes, chunk_minutes=chunk_size)
-                n = len(chunks)
-                st.write(f"→ {n} chunk(s) of up to {chunk_size} min each")
-
-                # Step 2: Transcribe each chunk
-                full_text = []
-                progress = st.progress(0)
-                for i, chunk in enumerate(chunks):
-                    st.write(f"🔤 Transcribing chunk {i+1}/{n}...")
-                    chunk_text = transcribe_chunk(chunk, language=whisper_lang)
-                    full_text.append(chunk_text)
-                    st.session_state.transcript_chunks.append({
-                        "index": i + 1,
-                        "start_min": i * chunk_size,
-                        "end_min": (i + 1) * chunk_size,
-                        "text": chunk_text,
-                    })
-                    progress.progress((i + 1) / n)
-
-                st.session_state.transcript = "\n\n".join(full_text)
-                status_box.update(label="✅ Transcription complete!", state="complete")
-
-            st.success("Transcript ready! Head to the **💬 Ask Questions** tab.")
-            st.balloons()
-    else:
-        st.info("👆 Record or upload audio above to begin.")
-
-    # Show chunk breakdown if available
-    if st.session_state.transcript_chunks:
-        with st.expander(f"📦 Chunk breakdown ({len(st.session_state.transcript_chunks)} chunks)"):
-            for c in st.session_state.transcript_chunks:
-                st.markdown(
-                    f'<div class="chunk-item chunk-done">'
-                    f'<strong>Chunk {c["index"]}</strong> ({c["start_min"]}–{c["end_min"]} min) '
-                    f'— {len(c["text"].split())} words'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-
-# ────────────────────────────────────────────────────────────────────────────
-# TAB 2 — Q&A Chat
-# ────────────────────────────────────────────────────────────────────────────
-with tab2:
-    if not st.session_state.transcript:
-        st.info("📋 No transcript yet. Go to **🎙 Record & Transcribe** first.")
-    else:
-        # Provider status bar
-        if provider_choice and model_choice:
-            st.markdown(
-                f'<div class="provider-pill">Using <strong>{provider_choice.capitalize()}</strong> · {model_choice}</div>',
-                unsafe_allow_html=True,
-            )
-            st.markdown("")
-
-        # Quick prompts
-        st.markdown("**Quick questions:**")
-        quick_cols = st.columns(4)
-        quick_prompts = [
-            "Summarise this meeting",
-            "What are the action items?",
-            "Who said what key points?",
-            "What decisions were made?",
-        ]
-        for i, qp in enumerate(quick_prompts):
-            with quick_cols[i]:
-                if st.button(qp, key=f"quick_{i}", use_container_width=True):
-                    st.session_state._pending_question = qp
-
-        st.divider()
-
-        # Chat history display
-        chat_container = st.container()
-        with chat_container:
-            if not st.session_state.chat_history:
-                st.markdown(
-                    '<div style="text-align:center;color:#475569;padding:40px 0;">No messages yet. Ask something about your meeting!</div>',
-                    unsafe_allow_html=True,
-                )
+            if not st.session_state.live_recording:
+                if st.button("Start Meeting", use_container_width=True, type="primary"):
+                    st.session_state.live_recording = True
+                    st.session_state.live_start = time.time()
+                    st.session_state.audio_bytes = None
+                    st.experimental_rerun()
             else:
-                for turn in st.session_state.chat_history:
-                    if turn["role"] == "user":
-                        st.markdown(
-                            f'<div class="chat-meta" style="text-align:right;">You</div>'
-                            f'<div class="chat-user">{turn["content"]}</div>',
-                            unsafe_allow_html=True,
-                        )
-                    else:
-                        provider_label = turn.get("provider", "AI")
-                        st.markdown(
-                            f'<div class="chat-meta">🤖 {provider_label}</div>'
-                            f'<div class="chat-ai">{turn["content"]}</div>',
-                            unsafe_allow_html=True,
-                        )
+                if st.button("Stop & Process", use_container_width=True):
+                    st.session_state.live_recording = False
+                    st.session_state.live_end = time.time()
+                st.markdown('<div class="wave"></div>', unsafe_allow_html=True)
+                elapsed = int(time.time() - st.session_state.live_start)
+                st.markdown(f"**Live time:** {elapsed//3600:02d}:{(elapsed%3600)//60:02d}:{elapsed%60:02d}")
 
-        # Input area
+            audio_live = audio_recorder(text="Meeting live — click to stop", pause_threshold=60.0)
+            if audio_live:
+                st.session_state.audio_bytes = audio_live
+                st.success(f"Captured {len(audio_live)/1024:.1f} KB of audio")
+                st.audio(audio_live)
+        except ImportError:
+            st.warning("Install `audio-recorder-streamlit` for live recording. Use Upload tab instead.")
+
+    with col_right:
+        st.markdown("### Quick Stats")
+        if st.session_state.audio_bytes:
+            st.metric("Audio captured (KB)", f"{len(st.session_state.audio_bytes)/1024:.1f}")
+        else:
+            st.info("No live audio yet — start the meeting")
+
+
+# -----------------------------
+# TAB: Upload & Process
+# -----------------------------
+with tab_upload:
+    st.header("📁 Upload & Process")
+    st.markdown("Upload audio or use captured live audio, then transcribe and optionally run speaker diarization.")
+    uploaded = st.file_uploader("Upload audio file", type=["mp3", "wav", "m4a", "ogg", "flac", "webm", "mp4"])
+    if uploaded:
+        st.session_state.audio_bytes = uploaded.read()
+        st.success(f"Uploaded {uploaded.name}")
+        st.audio(st.session_state.audio_bytes)
+
+    if st.session_state.audio_bytes:
         st.markdown("---")
-        col_input, col_send = st.columns([5, 1])
-        with col_input:
-            question = st.text_input(
-                "Ask a question",
-                key="qa_input",
-                placeholder="e.g. What were the main decisions? Who is responsible for the backend?",
-                label_visibility="collapsed",
-            )
-        with col_send:
-            send_btn = st.button("Send ▶", type="primary", use_container_width=True)
+        if st.button("Process: Transcribe + Diarize", use_container_width=True, type="primary"):
+            st.session_state.processing = True
+            st.session_state.transcript = ""
+            st.session_state.transcript_segments = []
+            with st.spinner("Chunking audio..."):
+                chunks = chunk_audio(st.session_state.audio_bytes, chunk_minutes=chunk_size)
 
-        # Handle pending quick question
-        if hasattr(st.session_state, "_pending_question"):
-            question = st.session_state._pending_question
-            del st.session_state._pending_question
-            send_btn = True
+            total_segments = []
+            pbar = st.progress(0)
+            for i, chunk in enumerate(chunks):
+                segs = transcribe_chunk(chunk, language=whisper_lang)
+                if isinstance(segs, list):
+                    for s in segs:
+                        total_segments.append(s)
+                else:
+                    total_segments.append({"text": str(segs), "start": 0.0, "end": 0.0})
+                pbar.progress((i + 1) / len(chunks))
 
-        if send_btn and question and provider_choice and model_choice:
-            # Add user turn
-            st.session_state.chat_history.append({"role": "user", "content": question})
+            st.session_state.transcript_segments = total_segments
+            st.session_state.transcript = "\n\n".join(s.get("text", "") for s in total_segments)
 
-            with st.spinner(f"Thinking with {provider_choice}/{model_choice}..."):
-                answer = ask_ai(
-                    question=question,
-                    transcript=st.session_state.transcript,
-                    history=st.session_state.chat_history[:-1],
-                    provider=provider_choice,
-                    model=model_choice,
-                    providers=providers,
-                )
 
-            st.session_state.chat_history.append({
-                "role": "assistant",
-                "content": answer,
-                "provider": f"{provider_choice.capitalize()} / {model_choice}",
-            })
-            st.rerun()
+            # Attempt diarization
+            hf = st.secrets.get("HF_TOKEN", "") or os.environ.get("HF_TOKEN", "")
+            if hf:
+                try:
+                    from pyannote.audio import Pipeline
 
-        # Clear chat
-        if st.session_state.chat_history:
-            if st.button("🗑 Clear conversation", use_container_width=False):
-                st.session_state.chat_history = []
-                st.rerun()
+                    @st.cache_resource
+                    def load_pyannote(token: str = hf):
+                        return Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=token)
 
-# ────────────────────────────────────────────────────────────────────────────
-# TAB 3 — Transcript Viewer
-# ────────────────────────────────────────────────────────────────────────────
-with tab3:
+                    pipeline = load_pyannote()
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                        f.write(st.session_state.audio_bytes)
+                        wav_path = f.name
+                    diar = pipeline(wav_path)
+                    # diar is a pyannote.core.Annotation: iterate segments
+                    speakers = []
+                    diar_segments = []
+                    for turn, track in diar.itertracks(yield_label=True):
+                        s_start = float(turn.start)
+                        s_end = float(turn.end)
+                        label = track
+                        speakers.append(label)
+                        diar_segments.append({"start": s_start, "end": s_end, "speaker": label})
+
+                    speakers = sorted(list(set(speakers)))
+                    # Map speakers to friendly names
+                    st.session_state.diarization = diar_segments
+                    st.session_state.speakers = speakers
+                    st.session_state.speaker_map = {s: s for s in speakers}
+                    # Map transcript segments to speakers by overlap
+                    mapped = map_segments_to_speakers(st.session_state.transcript_segments, st.session_state.diarization)
+                    st.session_state.transcript_segments = mapped
+                    st.session_state.action_items = extract_action_items(st.session_state.transcript)
+                    st.success(f"Diarization complete — {len(speakers)} speakers detected")
+                except Exception as e:
+                    st.warning(f"Speaker diarization failed: {e}")
+                    st.session_state.diarization = None
+            else:
+                st.warning("HF_TOKEN not set — diarization disabled. Add HF_TOKEN in secrets to enable.")
+                # Still extract actions from transcript
+                st.session_state.action_items = extract_action_items(st.session_state.transcript)
+
+            st.session_state.processing = False
+
+
+# -----------------------------
+# TAB: Transcript Viewer
+# -----------------------------
+with tab_transcript:
+    st.header("📋 Transcript")
     if not st.session_state.transcript:
-        st.info("No transcript yet.")
+        st.info("No transcript yet. Process audio in the Upload tab.")
     else:
-        col_a, col_b = st.columns([3, 1])
-        with col_a:
-            word_count = len(st.session_state.transcript.split())
-            st.markdown(f"**{word_count:,} words** · {len(st.session_state.transcript_chunks)} chunk(s)")
-        with col_b:
-            st.download_button(
-                "⬇ Download .txt",
-                data=st.session_state.transcript,
-                file_name=f"transcript_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                mime="text/plain",
-                use_container_width=True,
+        st.markdown(f"**{len(st.session_state.transcript.split()):,} words**")
+        st.download_button("⬇ Download .txt", data=st.session_state.transcript, file_name=f"transcript_{datetime.now().strftime('%Y%m%d_%H%M')}.txt")
+
+        # Speaker timeline view (grouped chat bubbles)
+        if st.session_state.transcript_segments:
+            st.markdown("### Diarized timeline")
+            # color palette
+            palette = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316"]
+            speakers = st.session_state.get("speakers") or sorted(list({s.get("speaker") for s in st.session_state.transcript_segments if s.get("speaker")}))
+            color_map = {sp: palette[i % len(palette)] for i, sp in enumerate(speakers)}
+
+            # group contiguous segments by speaker
+            grouped = []
+            prev_sp = None
+            buf_text = []
+            buf_start = 0.0
+            for seg in sorted(st.session_state.transcript_segments, key=lambda x: x.get("start", 0.0)):
+                sp = seg.get("speaker", "Unknown")
+                if prev_sp is None:
+                    prev_sp = sp
+                    buf_text = [seg.get("text", "")]
+                    buf_start = seg.get("start", 0.0)
+                elif sp == prev_sp:
+                    buf_text.append(seg.get("text", ""))
+                else:
+                    grouped.append({"speaker": prev_sp, "start": buf_start, "text": " ".join(buf_text)})
+                    prev_sp = sp
+                    buf_text = [seg.get("text", "")]
+                    buf_start = seg.get("start", 0.0)
+            if prev_sp is not None:
+                grouped.append({"speaker": prev_sp, "start": buf_start, "text": " ".join(buf_text)})
+
+            for g in grouped:
+                sp = g["speaker"]
+                name = st.session_state.speaker_map.get(sp, sp)
+                color = color_map.get(sp, "#64748b")
+                start = int(g.get("start", 0))
+                tstamp = f"[{start//60:02d}:{start%60:02d}]"
+                initial = (name.split()[0][0] if name else "?")
+                html = (
+                    f'<div style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;">'
+                    f'<div style="width:40px;height:40px;border-radius:20px;background:{color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;">{initial}</div>'
+                    f'<div style="flex:1">'
+                    f'<div style="font-size:0.85rem;color:#94a3b8;margin-bottom:4px">{tstamp} <strong style="color:#e2e8f0">{name}</strong></div>'
+                    f'<div style="background:#0f1724;border:1px solid #1f2937;border-radius:10px;padding:10px;color:#cbd5e1">{g["text"]}</div>'
+                    f'</div></div>'
+                )
+                st.markdown(html, unsafe_allow_html=True)
+        else:
+            st.markdown("### Transcript (no diarization)")
+            st.text_area("Transcript", value=st.session_state.transcript, height=400)
+
+
+# -----------------------------
+# TAB: Minutes & Export
+# -----------------------------
+with tab_mom:
+    st.header("📄 Minutes of Meeting (MoM)")
+    if not st.session_state.transcript:
+        st.info("No transcript available to generate MoM.")
+    else:
+        st.text_input("Meeting Title", key="mom_title", value=st.session_state.meeting_title)
+        st.text_input("Date & Time", key="mom_date", value=st.session_state.meeting_date)
+        duration_str = "TBD"
+        if hasattr(st.session_state, "live_start") and hasattr(st.session_state, "live_end"):
+            duration_sec = int(st.session_state.live_end - st.session_state.live_start)
+            duration_str = f"{duration_sec//60}m {duration_sec%60}s"
+
+        st.markdown("### Summary & Generate")
+        if st.button("Generate MoM (AI)", use_container_width=True):
+            provider = st.session_state.ai_provider if st.session_state.ai_provider != "auto" else provider_choice or next(iter(providers), None)
+            model = st.session_state.selected_model or model_choice
+            speakers_list = ", ".join(st.session_state.speakers) if st.session_state.get("speakers") else "TBD"
+            tagged = build_speaker_transcript(st.session_state.transcript_segments) if st.session_state.transcript_segments else st.session_state.transcript
+            actions = st.session_state.get("action_items", [])
+            mom_text = generate_mom_cached(
+                title=st.session_state.get("mom_title", ""),
+                date=st.session_state.get("mom_date", ""),
+                duration=duration_str,
+                speakers=speakers_list,
+                transcript=tagged,
+                actions=actions,
+                provider=provider,
+                model=model,
+                providers=providers,
             )
+            st.session_state.mom = mom_text
+            st.success("MoM generated")
 
-        # Editable transcript
-        edited = st.text_area(
-            "Transcript (editable)",
-            value=st.session_state.transcript,
-            height=500,
-            label_visibility="collapsed",
-        )
-        if edited != st.session_state.transcript:
-            if st.button("💾 Save edits"):
-                st.session_state.transcript = edited
-                st.success("Saved!")
-
-        # Per-chunk view
-        if st.session_state.transcript_chunks:
-            st.divider()
-            st.markdown("#### Per-chunk transcript")
-            for c in st.session_state.transcript_chunks:
-                with st.expander(f"Chunk {c['index']} ({c['start_min']}–{c['end_min']} min)"):
-                    st.write(c["text"])
+        if st.session_state.mom:
+            st.markdown("### Minutes")
+            st.text_area("MoM", value=st.session_state.mom, height=500)
+            # Exports (TXT always)
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.download_button("Download .txt", data=st.session_state.mom, file_name="mom.txt")
+            with col2:
+                try:
+                    pdf_bytes = export_pdf(st.session_state.mom, logo_bytes=st.session_state.get("logo_bytes"))
+                    if pdf_bytes:
+                        st.download_button("Download PDF", data=pdf_bytes, file_name="mom.pdf", mime="application/pdf")
+                    else:
+                        st.markdown("PDF export not available")
+                except Exception as e:
+                    st.markdown(f"PDF export error: {e}")
+            with col3:
+                try:
+                    docx_bytes = export_docx(st.session_state.mom)
+                    if docx_bytes:
+                        st.download_button("Download DOCX", data=docx_bytes, file_name="mom.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                    else:
+                        st.markdown("DOCX export not available")
+                except Exception as e:
+                    st.markdown(f"DOCX export error: {e}")
