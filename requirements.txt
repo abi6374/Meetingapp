@@ -1,0 +1,19 @@
+# Core
+streamlit>=1.35.0
+
+# Audio recording (browser-based)
+audio-recorder-streamlit>=0.0.8
+
+# Transcription (local, CPU-based, no API key)
+faster-whisper>=1.0.0
+
+# Audio chunking
+pydub>=0.25.1
+
+# AI providers (install all, app auto-detects which is configured)
+groq>=0.9.0
+google-generativeai>=0.7.0
+requests>=2.31.0
+
+# Utilities
+python-dotenv>=1.0.0
