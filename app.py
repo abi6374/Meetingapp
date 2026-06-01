@@ -695,11 +695,6 @@ with tab_live:
                     st.session_state.live_recording = True
                     st.session_state.live_start = time.time()
                     st.session_state.audio_bytes = None
-                    try:
-                        st.experimental_rerun()
-                    except Exception:
-                        # older/newer Streamlit builds may not expose experimental_rerun
-                        pass
             else:
                 if st.button("Stop & Process", use_container_width=True):
                     st.session_state.live_recording = False
