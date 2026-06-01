@@ -6,7 +6,10 @@ import os
 # Render persistent disk or local fallback
 if os.environ.get("RENDER"):
     # Store the database in the dedicated persistent /data folder
-    SQLALCHEMY_DATABASE_URL = "sqlite:////data/meetingmind.db"
+    db_path = Path("/data/meetingmind.db")
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{db_path}"
+    # Ensure directory exists at runtime
+    db_path.parent.mkdir(parents=True, exist_ok=True)
 else:
     # Local development path
     BASE_DIR = Path(__file__).resolve().parent.parent.parent

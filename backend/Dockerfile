@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create data directory for SQLite persistence
+RUN mkdir -p /data && chmod 777 /data
+
 # Copy the rest of the application
 COPY . .
 
