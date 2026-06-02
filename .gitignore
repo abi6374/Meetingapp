@@ -1,20 +1,67 @@
-# -----------------------------------------------------------------------------
-# OS / IDE
-# -----------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
+#  OS / IDE
+# ──────────────────────────────────────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+.AppleDouble
+.LSOverride
 Thumbs.db
-.idea/
-.vscode/
+Desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+*~
 *.swp
 *.swo
+*.swn
+*.bak
+*.orig
 
-# -----------------------------------------------------------------------------
-# Backend (Python / FastAPI / Streamlit Legacy)
-# -----------------------------------------------------------------------------
-# Byte-compiled / optimized / DLL files
+.idea/
+.vscode/
+.vs/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.project
+.classpath
+.settings/
+.c9/
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Python (Backend / Streamlit)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Byte-compiled
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Packaging / Distribution
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+develop-eggs/
+parts/
+sdist/
+var/
+
+# Testing & Coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+.tox/
+nox/
+.cache/
+.hypothesis/
 
 # Virtual Environments
 venv/
@@ -22,56 +69,96 @@ env/
 .venv/
 env.bak/
 venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Environment variables & Secrets (CRITICAL: DO NOT COMMIT)
+# ──────────────────────────────────────────────────────────────────────────────
+#  Environment & Secrets  ← CRITICAL: DO NOT COMMIT REAL SECRETS
+# ──────────────────────────────────────────────────────────────────────────────
+
+# All .env files (development, production, staging, local overrides)
 .env
-.env.*.local
+.env.*
 backend/.env
-frontend/.env.local
-.streamlit/secrets.toml
+backend/.env.*
+frontend/.env
+frontend/.env.*
 
-# Databases
+# Streamlit app secrets & config (created locally)
+.streamlit/
+.streamlit/secrets.toml
+.streamlit/config.toml
+
+# SSH keys, certificates, local PEM files
+*.pem
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Database
+# ──────────────────────────────────────────────────────────────────────────────
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
 meetingmind.db
-backend/meetingmind.db
 db.json
 
-# Application Data / Media / Logs
+# ──────────────────────────────────────────────────────────────────────────────
+#  Application Data / Media / Logs
+# ──────────────────────────────────────────────────────────────────────────────
 logs/
 *.log
-backend/logs/
-backend/uploads/
-backend/exports/
 uploads/
 exports/
 tmp/
 temp/
 meetingmind_chunks_*/
+backend/logs/
+backend/uploads/
+backend/exports/
 
-# -----------------------------------------------------------------------------
-# Frontend (Node.js / Next.js)
-# -----------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
+#  Frontend (Node.js / Next.js / TypeScript)
+# ──────────────────────────────────────────────────────────────────────────────
+
 # Dependencies
 node_modules/
-frontend/node_modules/
+.pnp
+.pnp.js
+.pnp.cjs
+.yarn/
+.npm/
+
+# Build output
+.next/
+out/
+build/
+dist/
+
+# Next.js auto-generated
+*.tsbuildinfo
+next-env.d.ts
+
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Next.js build output
-.next/
-frontend/.next/
-out/
-frontend/out/
-build/
-dist/
-
-# Next.js Telemetry & Cache
-.next/telemetry/
+# Misc
 .eslintcache
+*.tsbuildinfo
+tsconfig.tsbuildinfo
 
-# Vercel Deployment
+# ──────────────────────────────────────────────────────────────────────────────
+#  Deployment & CI
+# ──────────────────────────────────────────────────────────────────────────────
 .vercel/
+.serverless/
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Docker  (Dockerfile & docker-compose should be tracked — only ignore local
+#           test artifacts or override files if they appear)
+# ──────────────────────────────────────────────────────────────────────────────
+docker-compose.override.yml
