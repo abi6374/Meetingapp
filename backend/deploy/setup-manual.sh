@@ -15,10 +15,10 @@ warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 err()  { echo -e "${RED}[✗]${NC} $1"; }
 
 # ── 1. Configuration ──────────────────────────────────────────────────────────
-REPO_URL="${1:-https://github.com/YOUR_USERNAME/YOUR_REPO.git}"
+REPO_URL="${1:-https://github.com/abi6374/Meetingapp.git}"
 APP_DIR="$HOME/meetingmind"
 API_PORT=8000
-EC2_IP=$(curl -s http://checkip.amazonaws.com 2>/dev/null || echo "YOUR_EC2_IP")
+EC2_IP=$(curl -s http://checkip.amazonaws.com 2>/dev/null || echo "44.192.254.188")
 
 # ── 2. System Dependencies ────────────────────────────────────────────────────
 log "Updating system packages..."

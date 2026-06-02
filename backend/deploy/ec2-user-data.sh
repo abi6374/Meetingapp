@@ -30,7 +30,7 @@ systemctl start docker
 
 # ── 2. Clone the Repository ───────────────────────────────────────────────────
 cd /home/ubuntu
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git meetingmind || true
+git clone https://github.com/abi6374/Meetingapp.git meetingmind || true
 cd meetingmind
 
 # ── 3. Environment Variables ──────────────────────────────────────────────────

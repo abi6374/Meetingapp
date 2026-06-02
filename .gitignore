@@ -77,10 +77,13 @@ pip-delete-this-directory.txt
 # ──────────────────────────────────────────────────────────────────────────────
 
 # All .env files (development, production, staging, local overrides)
+# NOTE: .env.example files ARE tracked — they are templates, not secrets
 .env
 .env.*
+!.env.example
 backend/.env
 backend/.env.*
+!backend/.env.example
 frontend/.env
 frontend/.env.*
 
@@ -148,8 +151,6 @@ yarn-error.log*
 
 # Misc
 .eslintcache
-*.tsbuildinfo
-tsconfig.tsbuildinfo
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  Deployment & CI
