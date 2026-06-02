@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  meetingmind-api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: meetingmind-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - meetingmind-data:/data        # Persistent SQLite data
+      - meetingmind-uploads:/app/uploads
+      - meetingmind-logs:/app/logs
+    environment:
+      # ── Required ──
+      - SECRET_KEY=${SECRET_KEY}
+      # ── Security ──
+      - DEBUG=False
+      - RENDER=True                    # Ensures SQLite persists to /data volume
+      # ── Model Optimization (t3.medium = 4GB RAM, tiny recommended) ──
+      - WHISPER_MODEL=tiny
+      # ── AI Providers (optional, leave empty if not used) ──
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - HF_TOKEN=${HF_TOKEN:-}
+      - OLLAMA_URL=${OLLAMA_URL:-http://localhost:11434}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  meetingmind-data:
+    driver: local
+  meetingmind-uploads:
+    driver: local
+  meetingmind-logs:
+    driver: local

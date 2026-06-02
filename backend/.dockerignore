@@ -1,0 +1,39 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ── Local DB ──
+*.db
+*.db-journal
+db.json
+
+# ── Environment ──
+.env
+.env.*
+!.env.example
+
+# ── Storage ──
+uploads/
+logs/
+
+# ── Version Control ──
+.git/
+.gitignore
+
+# ── IDE & OS ──
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ── Docker ──
+Dockerfile
+.dockerignore
+
+# ── Docs ──
+README.md
+DEPLOYMENT.md
