@@ -5,6 +5,9 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+      args:
+        # Set to "true" to include speaker diarization (adds ~1.3 GB to image)
+        - ENABLE_DIARIZATION=${ENABLE_DIARIZATION:-false}
     container_name: meetingmind-api
     restart: unless-stopped
     ports:

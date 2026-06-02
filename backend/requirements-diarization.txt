@@ -1,0 +1,28 @@
+# ═══════════════════════════════════════════════════════════════
+#  MeetingMind — Optional Speaker Diarization Dependencies
+# ═══════════════════════════════════════════════════════════════
+#  These are HEAVY (~1.5 GB) and ONLY needed for speaker
+#  diarization (labeling WHO spoke when in the transcript).
+#
+#  The application has GRACEFUL FALLBACK:
+#  Without these, transcription still works perfectly.
+#  Speech segments will be labeled "Unknown Speaker."
+#
+#  Install only if you need speaker labels AND have:
+#   - At least 8 GB disk space
+#   - An HF_TOKEN for pyannote/speaker-diarization-3.1
+# ═══════════════════════════════════════════════════════════════
+#  Install with:
+#    pip install --no-cache-dir -r requirements-diarization.txt
+# ═══════════════════════════════════════════════════════════════
+
+# PyTorch (CPU-only — use the CPU index to avoid CUDA bloat)
+# Install via: pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+# DO NOT use the default PyPI torch (pulls 2GB+ of CUDA libraries)
+
+# Speaker Diarization
+pyannote.audio>=4.0.4
+
+# PyTorch audio processing (for diarization)
+# torch and torchaudio are installed separately via --index-url in Dockerfile
+# to ensure CPU-only wheels (no CUDA)

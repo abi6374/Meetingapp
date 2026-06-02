@@ -1,39 +1,54 @@
-# ── Python ──
+# ── Python ─────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
+*.pyo
 *.egg-info/
+*.egg
 .venv/
 venv/
 env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# ── Local DB ──
+# ── Local Database ──────────────────────────────────────────
 *.db
 *.db-journal
 db.json
+*.sqlite*
 
-# ── Environment ──
+# ── Environment & Secrets ───────────────────────────────────
 .env
 .env.*
 !.env.example
 
-# ── Storage ──
+# ── Storage (runtime data, not needed at build time) ────────
 uploads/
 logs/
+exports/
 
-# ── Version Control ──
+# ── Version Control ─────────────────────────────────────────
 .git/
 .gitignore
+.gitattributes
 
-# ── IDE & OS ──
+# ── IDE & OS ────────────────────────────────────────────────
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
 
-# ── Docker ──
+# ── Docker ──────────────────────────────────────────────────
 Dockerfile
 .dockerignore
+docker-compose*.yml
 
-# ── Docs ──
+# ── Documentation ───────────────────────────────────────────
 README.md
 DEPLOYMENT.md
+GEMINI.md
+
+# ── Frontend (not needed in backend image) ──────────────────
+frontend/

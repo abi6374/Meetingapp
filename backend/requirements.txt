@@ -1,21 +1,41 @@
+# ═══════════════════════════════════════════════════════════════
+#  MeetingMind — Core Python Dependencies
+# ═══════════════════════════════════════════════════════════════
+#  Key design: PyTorch and pyannote.audio are NOT here.
+#  They are ONLY needed for optional speaker diarization,
+#  which has graceful fallback in diarization.py.
+#  See requirements-diarization.txt for those.
+# ═══════════════════════════════════════════════════════════════
+
+# ── Web Framework ─────────────────────────────────────────────
 fastapi>=0.100.0
 uvicorn>=0.22.0
 pydantic[email]>=2.0.0
 pydantic-settings>=2.0.0
 python-multipart>=0.0.6
-faster-whisper>=1.2.1
-pyannote.audio>=4.0.4
-torch>=2.10.0
-torchaudio>=2.11.0
-torchcodec>=0.1.0
-huggingface_hub>=0.23.0
-groq>=0.9.0
-google-generativeai>=0.8.0
-requests>=2.31.0
-python-docx>=1.1.0
-reportlab>=4.0.0
+
+# ── Database (SQLite via SQLAlchemy) ──────────────────────────
 SQLAlchemy>=2.0.0
 alembic>=1.13.0
+
+# ── Auth & Security ───────────────────────────────────────────
 bcrypt>=4.0.0
 python-jose[cryptography]>=3.3.0
 cryptography>=42.0.0
+
+# ── Audio Transcription ───────────────────────────────────────
+# NOTE: faster-whisper uses CTranslate2, NOT PyTorch.
+# PyTorch is NOT required for transcription.
+faster-whisper>=1.2.1
+
+# ── AI Providers ──────────────────────────────────────────────
+groq>=0.9.0
+google-generativeai>=0.8.0
+requests>=2.31.0
+
+# ── Document Export ───────────────────────────────────────────
+python-docx>=1.1.0
+reportlab>=4.0.0
+
+# ── Hugging Face Hub (for model downloads & auth) ─────────────
+huggingface_hub>=0.23.0
