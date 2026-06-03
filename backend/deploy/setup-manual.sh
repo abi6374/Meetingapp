@@ -39,7 +39,7 @@ After=network.target
 User=$CUR_USER
 Group=www-data
 WorkingDirectory=$CUR_DIR
-Environment=\"PATH=$CUR_DIR/venv/bin\"
+Environment=\"PATH=$CUR_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin\"
 EnvironmentFile=$CUR_DIR/.env
 ExecStart=$CUR_DIR/venv/bin/gunicorn \\
     -w 1 \\
