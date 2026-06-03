@@ -12,7 +12,16 @@ from app.core.security import ALGORITHM
 logger = logging.getLogger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
+# Debugging flag to log key info only once
+_key_logged = False
+
 def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)) -> User:
+    global _key_logged
+    
+    if not _key_logged:
+        logger.info(f"AUTH DEBUG: Secret Key Length: {len(settings.SECRET_KEY)}")
+        _key_logged = True
+        
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

@@ -4,26 +4,30 @@ from pathlib import Path
 
 class Settings(BaseSettings):
     APP_NAME: str = "MeetingMind API"
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "supersecretkey")
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
+    
+    # Securely load and clean the SECRET_KEY
+    # We strip quotes to prevent "Signature verification failed" errors
+    SECRET_KEY: str = str(os.getenv("SECRET_KEY", "supersecretkey")).strip("\"' ")
+    
+    DEBUG: bool = str(os.getenv("DEBUG", "True")).lower() == "true"
     
     # Storage
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
     UPLOAD_DIR: Path = BASE_DIR / "uploads"
     LOG_DIR: Path = BASE_DIR / "logs"
     
-    # AI Providers
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    HF_TOKEN: str = os.getenv("HF_TOKEN", "")
-    OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    # AI Providers (Cleaned)
+    GROQ_API_KEY: str = str(os.getenv("GROQ_API_KEY", "")).strip("\"' ")
+    GEMINI_API_KEY: str = str(os.getenv("GEMINI_API_KEY", "")).strip("\"' ")
+    HF_TOKEN: str = str(os.getenv("HF_TOKEN", "")).strip("\"' ")
+    OLLAMA_URL: str = str(os.getenv("OLLAMA_URL", "http://localhost:11434")).strip("\"' ")
     
-    # Render Free Tier Memory Optimization (512MB limit)
-    # Using 'tiny' reduces RAM footprint from ~600MB to ~150MB
-    WHISPER_MODEL: str = os.getenv("WHISPER_MODEL", "tiny")
+    # Models
+    WHISPER_MODEL: str = str(os.getenv("WHISPER_MODEL", "tiny")).strip("\"' ")
     
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()
 
