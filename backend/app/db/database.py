@@ -3,17 +3,21 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from pathlib import Path
 import os
 
-# Render persistent disk or local fallback
+# Database path logic
 if os.environ.get("RENDER"):
-    # Store the database in the dedicated persistent /data folder
+    # Render persistent disk
     db_path = Path("/data/meetingmind.db")
     SQLALCHEMY_DATABASE_URL = f"sqlite:///{db_path}"
-    # Ensure directory exists at runtime
     db_path.parent.mkdir(parents=True, exist_ok=True)
+elif os.path.exists("/home/ubuntu/Meetingapp/backend"):
+    # EC2 path
+    BASE_DIR = Path("/home/ubuntu/Meetingapp/backend")
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{BASE_DIR}/meetingmind.db"
 else:
-    # Local development path
+    # Local fallback
     BASE_DIR = Path(__file__).resolve().parent.parent.parent
     SQLALCHEMY_DATABASE_URL = f"sqlite:///{BASE_DIR}/meetingmind.db"
+
 
 print(f"DATABASE_URL: {SQLALCHEMY_DATABASE_URL}")
 
