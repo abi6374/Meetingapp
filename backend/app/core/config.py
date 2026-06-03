@@ -1,33 +1,43 @@
 import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
+from pydantic import model_validator
+from typing import Self
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
     APP_NAME: str = "MeetingMind API"
-    
-    # Securely load and clean the SECRET_KEY
-    # We strip quotes to prevent "Signature verification failed" errors
-    SECRET_KEY: str = str(os.getenv("SECRET_KEY", "supersecretkey")).strip("\"' ")
-    
-    DEBUG: bool = str(os.getenv("DEBUG", "True")).lower() == "true"
+    SECRET_KEY: str = "supersecretkey"
+    DEBUG: bool = True
     
     # Storage
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
     UPLOAD_DIR: Path = BASE_DIR / "uploads"
     LOG_DIR: Path = BASE_DIR / "logs"
     
-    # AI Providers (Cleaned)
-    GROQ_API_KEY: str = str(os.getenv("GROQ_API_KEY", "")).strip("\"' ")
-    GEMINI_API_KEY: str = str(os.getenv("GEMINI_API_KEY", "")).strip("\"' ")
-    HF_TOKEN: str = str(os.getenv("HF_TOKEN", "")).strip("\"' ")
-    OLLAMA_URL: str = str(os.getenv("OLLAMA_URL", "http://localhost:11434")).strip("\"' ")
+    # AI Providers
+    GROQ_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    HF_TOKEN: str = ""
+    OLLAMA_URL: str = "http://localhost:11434"
     
     # Models
-    WHISPER_MODEL: str = str(os.getenv("WHISPER_MODEL", "tiny")).strip("\"' ")
-    
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    WHISPER_MODEL: str = "tiny"
+
+    @model_validator(mode='after')
+    def clean_env_vars(self) -> Self:
+        """Automatically strip quotes and whitespace from all string environment variables."""
+        for field_name in self.model_fields:
+            value = getattr(self, field_name)
+            if isinstance(value, str):
+                cleaned_value = value.strip("\"' ")
+                setattr(self, field_name, cleaned_value)
+        return self
 
 settings = Settings()
 
