@@ -41,6 +41,10 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+# Debugging: Log a preview of the key to ensure consistency across workers
+key_preview = f"{settings.SECRET_KEY[:2]}...{settings.SECRET_KEY[-2:]}" if len(settings.SECRET_KEY) > 4 else "SHORT_KEY"
+print(f"LOADED CONFIG: SECRET_KEY_PREVIEW={key_preview} (Length: {len(settings.SECRET_KEY)})")
+
 # Ensure directories exist
 settings.UPLOAD_DIR.mkdir(exist_ok=True)
 settings.LOG_DIR.mkdir(exist_ok=True)
