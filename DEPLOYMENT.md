@@ -9,7 +9,8 @@ Your EC2 instance must run Nginx to handle incoming traffic on Port 80 and forwa
 **File:** `backend/deploy/nginx.conf`
 Ensure the following settings are active:
 * `client_max_body_size 100M;` (Allows large meeting uploads)
-* `proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;` (Preserves the HTTPS status from CloudFront)
+* `proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;` (Correctly detects HTTPS via CloudFront)
+* `proxy_set_header X-Forwarded-Port $http_x_forwarded_port;` (Correctly detects the port via CloudFront)
 
 ### Application Service
 The backend runs as a systemd service (`meetingmind.service`).
