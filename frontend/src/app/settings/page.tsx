@@ -32,7 +32,7 @@ export default function SettingsPage() {
         payload.password = password;
       }
 
-      const res = await api.put('/auth/me', payload);
+      const res = await api.put('auth/me', payload);
       
       // Update local zustand store
       if (token) {

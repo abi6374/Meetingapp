@@ -38,7 +38,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await api.get('/meetings/');
+        const res = await api.get('meetings/');
         setRecentMeetings(res.data.slice(0, 4));
       } catch (err) {
         console.error(err);

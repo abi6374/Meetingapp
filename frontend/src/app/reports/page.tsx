@@ -24,7 +24,7 @@ export default function ReportsPage() {
   const fetchMeetings = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/meetings/');
+      const res = await api.get('meetings/');
       // Only show completed meetings with reports
       const completed = res.data.filter((m: Meeting) => m.status === 'completed' && m.mom_text);
       setMeetings(completed);
@@ -43,7 +43,7 @@ export default function ReportsPage() {
 
   const handleDownload = async (id: string, fmt: 'pdf' | 'docx') => {
     try {
-      const res = await api.get(`/meetings/${id}/export?fmt=${fmt}`, {
+      const res = await api.get(`meetings/${id}/export?fmt=${fmt}`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([res.data]));

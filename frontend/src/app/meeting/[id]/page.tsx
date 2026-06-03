@@ -60,7 +60,7 @@ export default function MeetingDetailPage() {
 
   const fetchMeeting = async () => {
     try {
-      const res = await api.get(`/meetings/${id}`);
+      const res = await api.get(`meetings/${id}`);
       setMeeting(res.data);
       setEditedMom(res.data.mom_text);
       if (res.data.status === 'processing') {
@@ -81,7 +81,7 @@ export default function MeetingDetailPage() {
 
   const handleDownload = async (fmt: 'txt' | 'pdf' | 'docx') => {
     try {
-      const res = await api.get(`/meetings/${id}/export?fmt=${fmt}`, {
+      const res = await api.get(`meetings/${id}/export?fmt=${fmt}`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -101,7 +101,7 @@ export default function MeetingDetailPage() {
     if (!meeting) return;
     setIsSaving(true);
     try {
-      await api.put(`/meetings/${id}`, { mom_text: editedMom });
+      await api.put(`meetings/${id}`, { mom_text: editedMom });
       setMeeting({ ...meeting, mom_text: editedMom });
       setIsEditing(false);
     } catch (err) {
@@ -115,7 +115,7 @@ export default function MeetingDetailPage() {
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await api.delete(`/meetings/${id}`);
+      await api.delete(`meetings/${id}`);
       router.push('/history');
     } catch (err) {
       console.error("Delete failed:", err);
@@ -135,7 +135,7 @@ export default function MeetingDetailPage() {
     setChatLoading(true);
 
     try {
-      const res = await api.post(`/meetings/${id}/chat`, {
+      const res = await api.post(`meetings/${id}/chat`, {
         question: chatInput,
         history: chatHistory,
         provider: 'groq',

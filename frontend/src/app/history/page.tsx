@@ -22,7 +22,7 @@ export default function HistoryPage() {
   const fetchMeetings = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/meetings/');
+      const res = await api.get('meetings/');
       setMeetings(res.data.reverse()); // Show newest first
       setError(null);
     } catch (err) {

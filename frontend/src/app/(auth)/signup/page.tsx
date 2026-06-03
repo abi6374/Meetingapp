@@ -24,7 +24,7 @@ export default function SignupPage() {
     
     try {
       // Create user
-      await api.post('/auth/signup', {
+      await api.post('auth/signup', {
         email,
         password,
         full_name: fullName
@@ -35,11 +35,11 @@ export default function SignupPage() {
       formData.append('username', email);
       formData.append('password', password);
       
-      const res = await api.post('/auth/login', formData);
+      const res = await api.post('auth/login', formData);
       const token = res.data.access_token;
       
       // Fetch user data
-      const meRes = await api.get('/auth/me', {
+      const meRes = await api.get('auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
       

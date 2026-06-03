@@ -28,7 +28,7 @@ export default function GlobalChatPage() {
   useEffect(() => {
     const fetchMeetings = async () => {
       try {
-        const res = await api.get('/meetings/');
+        const res = await api.get('meetings/');
         setMeetings(res.data);
         if (res.data.length > 0 && !selectedMeetingId) {
           setSelectedMeetingId(res.data[0].id);
@@ -62,7 +62,7 @@ export default function GlobalChatPage() {
     setChatLoading(true);
 
     try {
-      const res = await api.post(`/meetings/${selectedMeetingId}/chat`, {
+      const res = await api.post(`meetings/${selectedMeetingId}/chat`, {
         question: chatInput,
         history: chatHistory,
         provider: 'groq',

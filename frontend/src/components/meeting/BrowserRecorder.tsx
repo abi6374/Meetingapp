@@ -49,7 +49,7 @@ export default function BrowserRecorder() {
       formData.append('date', new Date().toISOString());
       formData.append('duration', duration.toString());
 
-      const response = await api.post('/meetings/upload', formData);
+      const response = await api.post('meetings/upload', formData);
       setMeetingId(response.data.meeting_id);
       toast.success("Meeting uploaded successfully!", { id: toastId });
       
