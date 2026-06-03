@@ -1,46 +1,51 @@
-# MeetingMind Deployment Guide
+# MeetingMind CloudFront + EC2 Deployment Guide
 
-This guide covers deploying the modernized MeetingMind SaaS platform.
+This guide details how to securely connect your Next.js frontend (Vercel) to your FastAPI backend (AWS EC2) using CloudFront as an HTTPS proxy.
 
-## 1. Backend (FastAPI) Deployment
-The backend handles heavy audio processing and AI generation. We recommend deploying to **Render**, **Railway**, or **Fly.io** using a Docker container, as `torch` and `ffmpeg` require specific system-level configurations.
+## 1. Backend (AWS EC2) Configuration
+### Nginx Setup
+Your EC2 instance must run Nginx to handle incoming traffic on Port 80 and forward it to the FastAPI application.
 
-### Prerequisites
-- Add your API Keys (`HF_TOKEN`, `GROQ_API_KEY`, etc.) as environment variables in your deployment dashboard.
+**File:** `backend/deploy/nginx.conf`
+Ensure the following settings are active:
+* `client_max_body_size 100M;` (Allows large meeting uploads)
+* `proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;` (Preserves the HTTPS status from CloudFront)
 
-### Render Configuration
-1. Create a new "Web Service" connected to your repository.
-2. Root Directory: `backend/`
-3. Environment: `Python 3.12`
-4. Build Command: 
-   ```bash
-   apt-get update && apt-get install -y ffmpeg libsm6 libxext6 && pip install -r requirements.txt
-   ```
-   *(Note: For Render, using a `Dockerfile` is highly recommended to guarantee `ffmpeg` installation).*
-5. Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+### Application Service
+The backend runs as a systemd service (`meetingmind.service`).
+* Working Directory: `/home/ubuntu/Meetingapp/backend`
+* Environment variables are loaded from `.env`.
 
-### Dockerfile (Recommended)
-Place this in your `backend/` directory if your host supports Docker:
-```dockerfile
-FROM python:3.12-slim
-WORKDIR /app
-RUN apt-get update && apt-get install -y ffmpeg libsm6 libxext6 && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
+---
 
-## 2. Frontend (Next.js) Deployment
-The frontend is optimized for **Vercel**.
+## 2. CloudFront (HTTPS Proxy) Configuration
+CloudFront provides the SSL certificate needed to talk to Vercel.
 
-1. Create a new project in Vercel.
-2. Select your repository.
-3. Root Directory: `frontend/`
-4. Framework Preset: `Next.js`
-5. Build Command: `npm run build`
-6. Environment Variables:
-   - `NEXT_PUBLIC_API_URL=https://your-fastapi-backend-url.com` (Update your Axios calls to use this).
+### Origin Settings
+* **Protocol:** HTTP Only (EC2 handles Port 80).
+* **Domain:** Your EC2 Public IPv4 DNS.
 
-## 3. Graceful Diarization Fallback
-In low-memory environments (like free tiers on Render/Railway), `pyannote.audio` may run out of memory (OOM). The backend architecture is explicitly designed to catch these system-level failures and fall back to standard Whisper transcription. To avoid unexpected crashes in production, ensure your deployment has **at least 2GB of RAM** if you intend to run full speaker diarization.
+### Behavior Settings (CRITICAL)
+* **Allowed HTTP Methods:** `GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE`.
+* **Cache Policy:** `CachingDisabled`.
+* **Origin Request Policy:** `AllViewerExceptHostHeader`. 
+  * *This is required to pass the `Authorization` header to the backend.*
+
+---
+
+## 3. Frontend (Vercel) Configuration
+* **NEXT_PUBLIC_API_URL:** `https://d233h9ny7ketsg.cloudfront.net/api`
+* **Note:** Ensure there is **no trailing slash** after `/api`.
+
+---
+
+## 4. Security & CORS
+The backend (`backend/app/main.py`) explicitly trusts your production domains:
+* `https://meetingapp-two.vercel.app`
+* `https://d233h9ny7ketsg.cloudfront.net`
+
+## Troubleshooting 401 Errors
+If you still see 401 errors:
+1. Verify the **Origin Request Policy** in CloudFront is set to `AllViewerExceptHostHeader`.
+2. Check that the `.env` file on EC2 contains the correct `SECRET_KEY` (must match the one used during signup).
+3. Check Nginx logs: `sudo tail -f /var/log/nginx/access.log`.

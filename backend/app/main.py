@@ -35,6 +35,7 @@ app.add_middleware(
         "http://localhost:3000",
         "https://meetingapp-two.vercel.app",
         "https://meetingmind.vercel.app",
+        "https://d233h9ny7ketsg.cloudfront.net",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
