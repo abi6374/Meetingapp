@@ -1,22 +1,32 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import meetings, auth
 from app.core.config import settings
 from app.db.database import engine, Base
 import time
 import logging
+import traceback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- DATABASE INITIALIZATION ---
-# Create tables automatically on startup (Safe for SQLite)
 logger.info("Initializing database tables...")
 Base.metadata.create_all(bind=engine)
-# -------------------------------
 
 app = FastAPI(title=settings.APP_NAME)
+
+# Global Exception Handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"GLOBAL ERROR: {str(exc)}")
+    logger.error(traceback.format_exc())
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error. Check EC2 journalctl logs."},
+    )
 
 # Request logging middleware
 @app.middleware("http")
@@ -24,11 +34,10 @@ async def log_requests(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
     process_time = (time.time() - start_time) * 1000
-    formatted_process_time = "{0:.2f}ms".format(process_time)
-    logger.info(f"RID: {request.headers.get('X-Process-Time')} | {request.method} {request.url.path} | Status: {response.status_code} | Time: {formatted_process_time}")
+    logger.info(f"{request.method} {request.url.path} | Status: {response.status_code} | Time: {process_time:.2f}ms")
     return response
 
-# CORS for Next.js frontend
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -56,7 +65,6 @@ app.include_router(meetings.router, prefix="/api/meetings", tags=["meetings"])
 async def health_check():
     return {
         "status": "ok", 
-        "app": settings.APP_NAME,
         "environment": "production" if not settings.DEBUG else "development"
     }
 
