@@ -38,6 +38,7 @@ async def log_requests(request: Request, call_next):
     return response
 
 # CORS Configuration
+# Simplified and robust for CloudFront
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -47,15 +48,8 @@ app.add_middleware(
         "https://d233h9ny7ketsg.cloudfront.net",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=[
-        "Content-Type",
-        "Authorization",
-        "X-Requested-With",
-        "Accept",
-        "Origin",
-    ],
-    expose_headers=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
