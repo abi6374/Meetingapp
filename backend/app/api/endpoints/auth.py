@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -9,6 +10,7 @@ from app.schemas.auth import UserCreate, UserResponse, Token, UserUpdate
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.api.dependencies import get_current_user
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/signup", response_model=UserResponse)
