@@ -32,14 +32,20 @@ async def log_requests(request: Request, call_next):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000", 
-        "https://meetingapp-two.vercel.app", # User's live Vercel frontend
-        "https://meetingmind.vercel.app", 
-        "*"
+        "http://localhost:3000",
+        "https://meetingapp-two.vercel.app",
+        "https://meetingmind.vercel.app",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Accept",
+        "Origin",
+    ],
+    expose_headers=["*"],
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
