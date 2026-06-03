@@ -1,4 +1,4 @@
-#!/src/app/bash
+#!/bin/bash
 
 # MeetingMind EC2 Setup Script (Ubuntu 24.04 LTS)
 # This script installs Python 3.12, FFmpeg, and sets up the application.
