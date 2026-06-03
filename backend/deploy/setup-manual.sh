@@ -41,11 +41,11 @@ Group=www-data
 WorkingDirectory=$CUR_DIR
 Environment=\"PATH=$CUR_DIR/venv/bin\"
 EnvironmentFile=$CUR_DIR/.env
-ExecStart=$CUR_DIR/venv/bin/gunicorn \
-    -w 2 \
-    -k uvicorn.workers.UvicornWorker \
-    app.main:app \
-    --bind 127.0.0.1:8000 \
+ExecStart=$CUR_DIR/venv/bin/gunicorn \\
+    -w 1 \\
+    -k uvicorn.workers.UvicornWorker \\
+    app.main:app \\
+    --bind 127.0.0.1:8000 \\
     --timeout 300
 
 [Install]
