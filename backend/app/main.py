@@ -25,46 +25,47 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(traceback.format_exc())
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error. Check EC2 journalctl logs."},
+        content={"detail": "Internal server error. Check EC2 logs."},
     )
 
-# Request logging middleware
+# Request logging middleware with Header Debugging
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
     
-    # DEBUG LOGS FOR PROXY/CORS
+    # Debug info for CORS/Proxy issues
     origin = request.headers.get("origin")
-    auth_header = request.headers.get("authorization")
-    forwarded_proto = request.headers.get("x-forwarded-proto")
+    method = request.method
+    path = request.url.path
     
-    logger.info(f"INCOMING REQUEST: {request.method} {request.url.path}")
-    logger.info(f"HEADERS: Origin={origin} | Auth={auth_header[:15] if auth_header else 'None'}... | Proto={forwarded_proto}")
-
     response = await call_next(request)
+    
     process_time = (time.time() - start_time) * 1000
-    logger.info(f"RESPONSE: Status: {response.status_code} | Time: {process_time:.2f}ms")
+    logger.info(f"{method} {path} | Status: {response.status_code} | Origin: {origin} | Time: {process_time:.2f}ms")
     return response
 
-# CORS Configuration
+# --- BULLETPROOF CORS CONFIGURATION ---
+# We explicitly list all production domains and allow all standard headers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "https://meetingapp-two.vercel.app",
-        "https://meetingmind.vercel.app",
         "https://d233h9ny7ketsg.cloudfront.net",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=[
         "Content-Type",
         "Authorization",
         "X-Requested-With",
         "Accept",
         "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers",
     ],
     expose_headers=["*"],
+    max_age=600, # Cache preflight for 10 minutes
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
@@ -74,6 +75,7 @@ app.include_router(meetings.router, prefix="/api/meetings", tags=["meetings"])
 async def health_check():
     return {
         "status": "ok", 
+        "app": settings.APP_NAME,
         "environment": "production" if not settings.DEBUG else "development"
     }
 
