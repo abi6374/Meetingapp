@@ -21,7 +21,7 @@
 # DO NOT use the default PyPI torch (pulls 2GB+ of CUDA libraries)
 
 # Speaker Diarization
-pyannote.audio>=4.0.4
+pyannote.audio==3.1.1
 
 # PyTorch audio processing (for diarization)
 # torch and torchaudio are installed separately via --index-url in Dockerfile
