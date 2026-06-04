@@ -41,9 +41,8 @@ CloudFront provides the SSL certificate needed to talk to Vercel.
 ---
 
 ## 4. Security & CORS
-The backend (`backend/app/main.py`) explicitly trusts your production domains:
-* `https://meetingapp-two.vercel.app`
-* `https://d233h9ny7ketsg.cloudfront.net`
+The backend allowed origins are configured in `backend/.env` (under `CORS_ORIGINS` as a comma-separated list). For production, ensure this contains your domain:
+* `CORS_ORIGINS=http://localhost:3000,https://meetingapp-two.vercel.app,https://d233h9ny7ketsg.cloudfront.net`
 
 ## Troubleshooting 401 Errors
 If you still see 401 errors:

@@ -45,14 +45,12 @@ async def log_requests(request: Request, call_next):
     return response
 
 # --- BULLETPROOF CORS CONFIGURATION ---
-# We explicitly list all production domains and allow all standard headers
+# We load allowed origins from settings (configurable via environment variables)
+origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://meetingapp-two.vercel.app",
-        "https://d233h9ny7ketsg.cloudfront.net",
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=[
@@ -63,6 +61,7 @@ app.add_middleware(
         "Origin",
         "Access-Control-Request-Method",
         "Access-Control-Request-Headers",
+        "ngrok-skip-browser-warning",
     ],
     expose_headers=["*"],
     max_age=6000, # Cache preflight for 10 minutes

@@ -17,6 +17,10 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Bypass ngrok browser warning page if backend is hosted on ngrok
+    config.headers['ngrok-skip-browser-warning'] = 'true';
+    
     return config;
   },
   (error) => {

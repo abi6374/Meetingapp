@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "MeetingMind API"
     SECRET_KEY: str = "supersecretkey"
     DEBUG: bool = True
+    CORS_ORIGINS: str = "http://localhost:3000,https://meetingapp-two.vercel.app,https://d233h9ny7ketsg.cloudfront.net"
     
     # Storage
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
