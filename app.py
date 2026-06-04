@@ -1,7 +1,9 @@
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 import streamlit as st
 import streamlit.components.v1 as components
 import base64
-import os
 import io
 import time
 import json
@@ -627,7 +629,8 @@ def build_speaker_transcript(segments: list) -> str:
         ts = f"{start // 3600:02d}:{(start % 3600) // 60:02d}:{start % 60:02d}"
         sp = s.get("speaker") or "Unknown"
         name = st.session_state.speaker_map.get(sp, sp)
-        lines.append(f"[{ts}] {name}: {s.get('text', '').replace('\n', ' ')}")
+        clean_text = s.get('text', '').replace('\n', ' ')
+        lines.append(f"[{ts}] {name}: {clean_text}")
     return "\n".join(lines)
 
 
