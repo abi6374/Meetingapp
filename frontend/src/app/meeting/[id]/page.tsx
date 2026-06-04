@@ -135,11 +135,19 @@ export default function MeetingDetailPage() {
     setChatLoading(true);
 
     try {
+      const user = useAuthStore.getState().user;
+      const provider = user?.ai_provider || 'groq';
+      const model = provider === 'gemini' 
+        ? 'gemini-1.5-flash' 
+        : provider === 'ollama' 
+          ? 'llama3' 
+          : 'llama-3.3-70b-versatile';
+
       const res = await api.post(`meetings/${id}/chat`, {
         question: chatInput,
         history: chatHistory,
-        provider: 'groq',
-        model: 'llama-3.3-70b-versatile'
+        provider,
+        model
       });
       setChatHistory([...newHistory, { role: 'assistant', content: res.data.reply }]);
     } catch (err) {
