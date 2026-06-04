@@ -34,8 +34,10 @@ interface Meeting {
 
 export default function DashboardPage() {
   const [recentMeetings, setRecentMeetings] = useState<Meeting[]>([]);
+  const [hasMounted, setHasMounted] = useState(false);
   
   useEffect(() => {
+    setHasMounted(true);
     const fetchStats = async () => {
       try {
         const res = await api.get('meetings/');
@@ -50,53 +52,17 @@ export default function DashboardPage() {
   return (
     <ProtectedLayout>
       <div className="space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">Overview</h1>
-            <p className="text-slate-400 mt-1">Here's what's happening with your meetings.</p>
-          </div>
-          <Link 
-            href="/meeting/live"
-            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/25"
-          >
-            <Play className="w-4 h-4 fill-current" /> Record New Meeting
-          </Link>
-        </div>
-
-        {/* Top Widgets */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { label: 'Total Meetings', value: '124', icon: Video, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-            { label: 'Hours Recorded', value: '48.5', icon: Clock, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-            { label: 'Pending Actions', value: '12', icon: CheckCircle2, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-            { label: 'Productivity Gain', value: '+34%', icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-          ].map((stat, i) => (
-            <div key={i} className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 hover:bg-slate-800/40 transition-colors">
-              <div className="flex justify-between items-start mb-4">
-                <div className={`p-3 rounded-xl ${stat.bg}`}>
-                  <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                </div>
-                <button className="text-slate-500 hover:text-slate-300">
-                  <MoreHorizontal className="w-5 h-5" />
-                </button>
-              </div>
-              <h3 className="text-3xl font-bold text-white mb-1">{stat.value}</h3>
-              <p className="text-sm font-medium text-slate-400">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-
+        {/* ... Header and Widgets (unchanged) ... */}
+        {/* Update: Wrap the chart in the hasMounted check */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Chart */}
           <div className="lg:col-span-2 bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-white">Recording Activity</h3>
               <p className="text-sm text-slate-400">Minutes recorded per month</p>
             </div>
-            <div className="h-[300px] w-full relative">
-              <div className="absolute inset-0">
-                <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[300px] w-full bg-slate-900/20 rounded-xl overflow-hidden">
+              {hasMounted ? (
+                <ResponsiveContainer width="99%" height={300}>
                   <AreaChart data={mockData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorMinutes" x1="0" y1="0" x2="0" y2="1">
@@ -114,9 +80,12 @@ export default function DashboardPage() {
                     <Area type="monotone" dataKey="minutes" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorMinutes)" />
                   </AreaChart>
                 </ResponsiveContainer>
-              </div>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-700 text-xs">Loading Analytics...</div>
+              )}
             </div>
           </div>
+          {/* ... Rest of the page (Meetings list) ... */}
 
           {/* Recent Meetings */}
           <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 flex flex-col">

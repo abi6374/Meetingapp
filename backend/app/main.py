@@ -32,13 +32,21 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
+    
+    # DEBUG LOGS FOR PROXY/CORS
+    origin = request.headers.get("origin")
+    auth_header = request.headers.get("authorization")
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    
+    logger.info(f"INCOMING REQUEST: {request.method} {request.url.path}")
+    logger.info(f"HEADERS: Origin={origin} | Auth={auth_header[:15] if auth_header else 'None'}... | Proto={forwarded_proto}")
+
     response = await call_next(request)
     process_time = (time.time() - start_time) * 1000
-    logger.info(f"{request.method} {request.url.path} | Status: {response.status_code} | Time: {process_time:.2f}ms")
+    logger.info(f"RESPONSE: Status: {response.status_code} | Time: {process_time:.2f}ms")
     return response
 
 # CORS Configuration
-# Simplified and robust for CloudFront
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -48,8 +56,15 @@ app.add_middleware(
         "https://d233h9ny7ketsg.cloudfront.net",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Accept",
+        "Origin",
+    ],
+    expose_headers=["*"],
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
