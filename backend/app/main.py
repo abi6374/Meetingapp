@@ -65,7 +65,7 @@ app.add_middleware(
         "Access-Control-Request-Headers",
     ],
     expose_headers=["*"],
-    max_age=600, # Cache preflight for 10 minutes
+    max_age=6000, # Cache preflight for 10 minutes
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
