@@ -45,8 +45,8 @@ try:
     if not hasattr(torchaudio, "set_audio_backend"):
         torchaudio.set_audio_backend = lambda x: None
         logging.info("Applied monkeypatch for torchaudio.set_audio_backend")
-except ImportError:
-    pass
+except Exception as e:
+    logging.debug(f"Could not load or patch torchaudio: {e}")
 
 # ── Logging Configuration ─────────────────────────────────────────────────────
 LOG_DIR = Path("logs")

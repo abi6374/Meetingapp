@@ -15,8 +15,8 @@ try:
     if not hasattr(torchaudio, "set_audio_backend"):
         torchaudio.set_audio_backend = lambda x: None
         logger.info("Applied monkeypatch for torchaudio.set_audio_backend")
-except ImportError:
-    pass
+except Exception as e:
+    logger.debug(f"Could not load or patch torchaudio: {e}")
 
 
 def run_diarization(audio_bytes: bytes) -> tuple[dict | None, str | None]:
