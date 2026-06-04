@@ -8,15 +8,16 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    // Attempt to get token from Zustand state first, fallback to raw localStorage
-    // This prevents 401s on hard refreshes where Axios runs before Zustand hydrates
-    let token = useAuthStore.getState().token;
-    if (!token) {
-      token = getTokenFromStorage();
-    }
-    
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Only attach the cached token if the Authorization header is not already explicitly set
+    if (!config.headers.Authorization) {
+      let token = useAuthStore.getState().token;
+      if (!token) {
+        token = getTokenFromStorage();
+      }
+      
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     
     // Bypass ngrok browser warning page if backend is hosted on ngrok
