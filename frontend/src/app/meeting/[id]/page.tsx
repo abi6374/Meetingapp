@@ -536,7 +536,7 @@ export default function MeetingDetailPage() {
                     </div>
                   );
                 }
-              })())}}
+              })()}
             </motion.div>
           )}
 

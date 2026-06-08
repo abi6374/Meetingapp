@@ -76,7 +76,12 @@ def generate_mom(title: str, date: str, duration: str, speakers: str, transcript
             pass
 
     from app.core.prompts import MOM_SYSTEM_PROMPT, build_mom_user_prompt
-    user_prompt = build_mom_user_prompt(transcript, duration_seconds=duration_seconds)
+    user_prompt = build_mom_user_prompt(
+        transcript=transcript, 
+        title=title, 
+        date=date, 
+        duration_seconds=duration_seconds
+    )
     
     return ask_ai(
         question=user_prompt,
