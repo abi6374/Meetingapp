@@ -3,10 +3,21 @@ import shutil
 import subprocess
 import tempfile
 import logging
+import io
 from pathlib import Path
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+def get_audio_duration(audio_bytes: bytes) -> float:
+    """Returns audio duration in seconds using pydub."""
+    try:
+        from pydub import AudioSegment
+        audio = AudioSegment.from_file(io.BytesIO(audio_bytes))
+        return len(audio) / 1000.0
+    except Exception as e:
+        logger.error(f"Error getting audio duration: {e}")
+        return 0.0
 
 def chunk_audio(audio_path: Path, chunk_minutes: int = 5) -> list[bytes]:
     """Split audio into N-minute WAV chunks using ffmpeg."""

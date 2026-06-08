@@ -46,12 +46,8 @@ def run_diarization(audio_bytes: bytes) -> tuple[dict | None, str | None]:
         import torchaudio
         try:
             import torchcodec
-        except ImportError as e:
-            logger.warning(f"torchcodec missing or failed to load: {e}")
-            return None, "Diarization disabled: torchcodec not installed."
-        except OSError as e:
-            logger.warning(f"torchcodec OS Error: {e}")
-            return None, "Diarization disabled: missing system libraries required by torchcodec."
+        except Exception as e:
+            logger.warning(f"Optional torchcodec not loaded: {e}. Diarization will proceed without it.")
 
         import pyannote.audio
         from pyannote.audio import Pipeline

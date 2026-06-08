@@ -56,10 +56,29 @@ def extract_action_items_regex(transcript: str) -> list[str]:
 def generate_mom(title: str, date: str, duration: str, speakers: str, transcript: str, provider: str, model: str) -> str:
     """Generate structured Meeting Minutes via AI."""
     logger.info("Generating Meeting Intelligence Report...")
-    actions = extract_action_items_regex(transcript)
-    prompt = MOM_PROMPT.format(title=title, date=date, duration=duration, speakers=speakers, transcript=transcript)
     
-    if actions:
-        prompt += "\n\nEXTRACTED_ACTIONS (For context):\n" + "\n".join(f"- {a}" for a in actions)
-        
-    return ask_ai(prompt, transcript, [], provider, model)
+    # Parse duration to seconds
+    duration_seconds = 0
+    if duration and duration != "TBD":
+        try:
+            parts = duration.split(":")
+            if len(parts) == 3:
+                duration_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+            elif len(parts) == 2:
+                duration_seconds = int(parts[0]) * 60 + int(parts[1])
+            else:
+                duration_seconds = int(float(duration))
+        except Exception:
+            pass
+
+    from app.core.prompts import MOM_SYSTEM_PROMPT, build_mom_user_prompt
+    user_prompt = build_mom_user_prompt(transcript, duration_seconds=duration_seconds)
+    
+    return ask_ai(
+        question=user_prompt,
+        transcript=transcript,
+        history=[],
+        provider=provider,
+        model=model,
+        system_prompt=MOM_SYSTEM_PROMPT
+    )

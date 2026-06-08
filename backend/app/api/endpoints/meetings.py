@@ -67,6 +67,22 @@ def background_process_audio(meeting_id: str, file_path: Path, user_id: str):
         db.commit()
         logger.info(f"Meeting {meeting_id} processing completed successfully.")
 
+        # Index the meeting for semantic search/RAG
+        try:
+            from app.services.rag import index_meeting
+            index_meeting(
+                meeting_id=meeting_id,
+                user_id=user_id,
+                title=meeting.title,
+                transcript=meeting.raw_transcript,
+                speaker_turns=result["segments"],
+                mom_summary=mom_text,
+                date_iso=meeting.date
+            )
+            logger.info(f"RAG indexing completed for meeting {meeting_id}")
+        except Exception as re:
+            logger.error(f"RAG indexing failed for meeting {meeting_id}: {re}")
+
     except Exception as e:
         logger.error(f"Background processing failed for {meeting_id}: {e}")
         meeting.status = "failed"
@@ -163,6 +179,14 @@ async def delete_meeting(meeting_id: str, db: Session = Depends(get_db), current
     # Soft delete
     meeting.is_deleted = True
     db.commit()
+
+    # Delete RAG index
+    try:
+        from app.services.rag import delete_meeting_index
+        delete_meeting_index(meeting_id)
+    except Exception as re:
+        logger.error(f"RAG index deletion failed for meeting {meeting_id}: {re}")
+
     return {"message": "Meeting deleted successfully"}
 
 @router.post("/{meeting_id}/chat")

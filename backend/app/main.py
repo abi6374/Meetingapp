@@ -4,7 +4,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.endpoints import meetings, auth
+from app.api.endpoints import meetings, auth, rag
 from app.core.config import settings
 from app.db.database import engine, Base
 import time
@@ -73,6 +73,7 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(meetings.router, prefix="/api/meetings", tags=["meetings"])
+app.include_router(rag.router, prefix="/api/rag", tags=["rag"])
 
 @app.get("/health")
 async def health_check():

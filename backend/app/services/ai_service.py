@@ -4,8 +4,9 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-def ask_ai(question: str, transcript: str, history: list, provider: str, model: str) -> str:
-    system_prompt = f"You are MeetingMind, an expert meeting analyst AI. Answer based ONLY on the transcript:\n\n{transcript[:12000]}"
+def ask_ai(question: str, transcript: str, history: list, provider: str, model: str, system_prompt: str = None) -> str:
+    if system_prompt is None:
+        system_prompt = f"You are MeetingMind, an expert meeting analyst AI. Answer based ONLY on the transcript:\n\n{transcript[:12000]}"
     messages = [{"role": "system", "content": system_prompt}]
     for turn in history[-10:]:
         messages.append({"role": turn["role"], "content": turn["content"]})

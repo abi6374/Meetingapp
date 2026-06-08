@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 from typing import Dict, Any
 
-from app.services.audio import chunk_audio
+from app.services.audio import chunk_audio, get_audio_duration
 from app.services.transcription import transcribe_chunk
 from app.services.diarization import run_diarization
 
@@ -42,12 +42,23 @@ def process_meeting_audio(audio_path: Path, language: str = "auto", enable_diari
     # 1. Chunking
     chunks = chunk_audio(audio_path, chunk_minutes=5)
     
-    # 2. Transcription
+    # 2. Transcription with cumulative offset
     total_segments = []
+    current_offset = 0.0
     for i, chunk in enumerate(chunks):
         logger.info(f"Transcribing chunk {i+1}/{len(chunks)}")
         segs = transcribe_chunk(chunk, language=language)
+        
+        # Adjust timestamps for the chunk offset
+        for s in segs:
+            s["start"] += current_offset
+            s["end"] += current_offset
+            
         total_segments.extend(segs)
+        
+        # Update offset based on actual chunk duration
+        chunk_duration = get_audio_duration(chunk)
+        current_offset += chunk_duration
 
     # 3. Diarization (Optional / Graceful Fallback)
     speakers = []

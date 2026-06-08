@@ -26,9 +26,12 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     HF_TOKEN: str = ""
     OLLAMA_URL: str = "http://localhost:11434"
+    LLM_PROVIDER: str = "groq"
     
     # Models
-    WHISPER_MODEL: str = "tiny"
+    WHISPER_MODEL: str = "base"
+    EMBED_MODEL: str = "all-MiniLM-L6-v2"
+    CHROMA_PATH: str = "./chroma_store"
 
     @model_validator(mode='after')
     def clean_env_vars(self) -> Self:
