@@ -15,7 +15,11 @@ import {
   EyeOff, 
   UserPlus, 
   CheckCircle2,
-  XCircle
+  XCircle,
+  ArrowRight,
+  Zap,
+  Sparkles,
+  Bot
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -94,49 +98,53 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050810] flex items-center justify-center p-4 selection:bg-indigo-500/30">
-      {/* Background blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px]"></div>
-      </div>
-
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-lg relative z-10 py-10"
-      >
-        <div className="text-center mb-8">
-          <motion.div 
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            className="inline-flex p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-4"
-          >
-            <UserPlus className="w-8 h-8" />
-          </motion.div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Create Account</h1>
-          <p className="text-slate-400 mt-2">Join MeetingMind and automate your meeting documentation</p>
+    <div className="min-h-screen bg-[#030712] flex selection:bg-indigo-500/30 font-sans">
+      
+      {/* Left Column - Form */}
+      <div className="w-full lg:w-[45%] flex flex-col justify-center px-8 sm:px-16 md:px-24 xl:px-32 relative z-10 py-10">
+        
+        {/* Mobile background bleed */}
+        <div className="absolute inset-0 lg:hidden overflow-hidden pointer-events-none">
+           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[40%] bg-indigo-600/10 rounded-full blur-[100px]"></div>
+           <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[40%] bg-blue-600/10 rounded-full blur-[100px]"></div>
         </div>
 
-        <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-8 md:p-10 rounded-[2.5rem] shadow-2xl">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="relative"
+        >
+          {/* Logo / Brand */}
+          <Link href="/" className="inline-flex items-center gap-2 mb-10 group">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300">
+               <Zap className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-black text-white tracking-tight">MeetingMind</span>
+          </Link>
+
+          <div className="mb-10">
+            <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">Create Account</h1>
+            <p className="text-slate-400 text-sm">Join MeetingMind and automate your meeting documentation.</p>
+          </div>
+
           <form className="space-y-5" onSubmit={handleSignup}>
-            <AnimatePresence mode='wait'>
+            <AnimatePresence mode="wait">
               {error && (
                 <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl flex items-center gap-3 text-sm"
+                  initial={{ opacity: 0, height: 0, y: -10 }}
+                  animate={{ opacity: 1, height: 'auto', y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -10 }}
+                  className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl flex items-start gap-3 text-sm"
                 >
-                  <AlertCircle className="w-5 h-5 shrink-0" />
-                  {error}
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">{error}</p>
                 </motion.div>
               )}
             </AnimatePresence>
             
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Legal Full Name</label>
+            <div className="space-y-2">
+              <label className="text-[13px] font-bold text-slate-300">Legal Full Name</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors">
                   <User className="w-5 h-5" />
@@ -147,13 +155,13 @@ export default function SignupPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="John Doe"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950/50 border border-slate-800 rounded-2xl text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  className="w-full pl-12 pr-4 py-4 bg-[#0a0f1c] border border-slate-800 hover:border-slate-700 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner"
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
+            <div className="space-y-2">
+              <label className="text-[13px] font-bold text-slate-300">Email Address</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors">
                   <Mail className="w-5 h-5" />
@@ -163,14 +171,14 @@ export default function SignupPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="john@example.com"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950/50 border border-slate-800 rounded-2xl text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  placeholder="name@company.com"
+                  className="w-full pl-12 pr-4 py-4 bg-[#0a0f1c] border border-slate-800 hover:border-slate-700 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner"
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Security Password</label>
+            <div className="space-y-2">
+              <label className="text-[13px] font-bold text-slate-300">Security Password</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors">
                   <Lock className="w-5 h-5" />
@@ -181,7 +189,7 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-12 pr-12 py-3.5 bg-slate-950/50 border border-slate-800 rounded-2xl text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  className="w-full pl-12 pr-12 py-4 bg-[#0a0f1c] border border-slate-800 hover:border-slate-700 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner font-medium tracking-wide"
                 />
                 <button
                   type="button"
@@ -193,8 +201,8 @@ export default function SignupPage() {
               </div>
               
               {/* Strength Meter */}
-              <div className="px-1 pt-2">
-                <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div className="px-1 pt-2 pb-2">
+                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden flex">
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${strength}%` }}
@@ -215,46 +223,91 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-500/20 active:scale-[0.98] disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Account"}
-              </button>
-            </div>
-
-            <div className="relative py-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-800"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[#0b121f] px-2 text-slate-500 font-medium">Already registered?</span>
-              </div>
-            </div>
-
-            <Link 
-              href="/login" 
-              className="w-full flex items-center justify-center py-3.5 border border-slate-800 hover:bg-slate-800/50 text-slate-300 font-semibold rounded-2xl transition-all"
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-[0_0_40px_-10px_rgba(79,70,229,0.5)] hover:shadow-[0_0_60px_-15px_rgba(79,70,229,0.7)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 overflow-hidden relative group"
             >
-              Sign In to Existing Account
-            </Link>
-          </form>
-        </div>
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                <>
+                  Create Free Account <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
 
-        <p className="text-center text-[10px] text-slate-600 font-medium uppercase tracking-[0.2em] mt-8">
-          Compliance Verified • GDPR Ready
-        </p>
-      </motion.div>
+            <p className="text-center text-sm text-slate-400 pt-4">
+              Already registered?{' '}
+              <Link href="/login" className="font-bold text-white hover:text-indigo-400 transition-colors">
+                Sign in
+              </Link>
+            </p>
+          </form>
+        </motion.div>
+      </div>
+
+      {/* Right Column - Visual Showcase */}
+      <div className="hidden lg:flex w-[55%] relative overflow-hidden bg-slate-900 items-center justify-center border-l border-slate-800">
+        {/* Dynamic Background Mesh */}
+        <div className="absolute inset-0 w-full h-full bg-[#030712]">
+          <div className="absolute top-[20%] right-[20%] w-[500px] h-[500px] bg-indigo-600/30 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '4s' }}></div>
+          <div className="absolute bottom-[20%] left-[20%] w-[400px] h-[400px] bg-emerald-600/20 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '6s', animationDelay: '1s' }}></div>
+          <div className="absolute top-[40%] left-[50%] -translate-x-1/2 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[150px]"></div>
+        </div>
+        
+        {/* Subtle grid pattern overlay */}
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+
+        {/* Floating UI Elements */}
+        <div className="relative z-10 w-full max-w-lg">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="bg-slate-900/60 backdrop-blur-2xl border border-slate-700/50 p-8 rounded-[2.5rem] shadow-2xl relative"
+          >
+            <div className="absolute -top-6 -right-6 w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20 -rotate-12">
+               <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            
+            <h3 className="text-2xl font-bold text-white mb-4">Transform your meetings.</h3>
+            <p className="text-slate-400 leading-relaxed mb-8">
+              Join thousands of professionals saving hours each week with automated transcription, diarization, and AI-powered insights.
+            </p>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+                <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-white font-bold text-sm">AI Minutes Generation</h4>
+                  <p className="text-slate-500 text-xs mt-0.5">Automated decisions & action items</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+                <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-white font-bold text-sm">Speaker Diarization</h4>
+                  <p className="text-slate-500 text-xs mt-0.5">Know exactly who said what</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
     </div>
   );
 }
 
 function PasswordCheck({ label, met }: { label: string, met: boolean }) {
   return (
-    <div className={`flex items-center gap-2 text-[11px] font-medium transition-colors ${met ? 'text-emerald-400' : 'text-slate-600'}`}>
-      {met ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3 opacity-50" />}
+    <div className={`flex items-center gap-2 text-xs font-medium transition-colors ${met ? 'text-emerald-400' : 'text-slate-500'}`}>
+      {met ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5 opacity-50" />}
       {label}
     </div>
   );

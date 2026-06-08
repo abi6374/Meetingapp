@@ -13,9 +13,11 @@ import {
   Eye, 
   EyeOff, 
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  Zap,
+  Fingerprint
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -54,46 +56,53 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050810] flex items-center justify-center p-4 selection:bg-indigo-500/30">
-      {/* Background blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px]"></div>
-      </div>
-
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md relative z-10"
-      >
-        <div className="text-center mb-8">
-          <motion.div 
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            className="inline-flex p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-4"
-          >
-            <ShieldCheck className="w-8 h-8" />
-          </motion.div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Welcome Back</h1>
-          <p className="text-slate-400 mt-2">Enter your credentials to access your meetings</p>
+    <div className="min-h-screen bg-[#030712] flex selection:bg-indigo-500/30 font-sans">
+      
+      {/* Left Column - Form */}
+      <div className="w-full lg:w-[45%] flex flex-col justify-center px-8 sm:px-16 md:px-24 xl:px-32 relative z-10">
+        
+        {/* Mobile background bleed */}
+        <div className="absolute inset-0 lg:hidden overflow-hidden pointer-events-none">
+           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[40%] bg-indigo-600/10 rounded-full blur-[100px]"></div>
+           <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[40%] bg-blue-600/10 rounded-full blur-[100px]"></div>
         </div>
 
-        <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl">
-          <form className="space-y-5" onSubmit={handleLogin}>
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl flex items-center gap-3 text-sm"
-              >
-                <AlertCircle className="w-5 h-5 shrink-0" />
-                {error}
-              </motion.div>
-            )}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="relative"
+        >
+          {/* Logo / Brand */}
+          <Link href="/" className="inline-flex items-center gap-2 mb-16 group">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300">
+               <Zap className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-black text-white tracking-tight">MeetingMind</span>
+          </Link>
+
+          <div className="mb-10">
+            <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">Welcome back</h1>
+            <p className="text-slate-400 text-sm">Please enter your details to sign in.</p>
+          </div>
+
+          <form className="space-y-6" onSubmit={handleLogin}>
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0, y: -10 }}
+                  animate={{ opacity: 1, height: 'auto', y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -10 }}
+                  className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl flex items-start gap-3 text-sm"
+                >
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">{error}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
             
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
+            <div className="space-y-2">
+              <label className="text-[13px] font-bold text-slate-300">Email</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors">
                   <Mail className="w-5 h-5" />
@@ -103,16 +112,16 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950/50 border border-slate-800 rounded-2xl text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  placeholder="Enter your email"
+                  className="w-full pl-12 pr-4 py-4 bg-[#0a0f1c] border border-slate-800 hover:border-slate-700 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner"
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center ml-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Password</label>
-                <a href="#" className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 uppercase tracking-wider">Forgot?</a>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-[13px] font-bold text-slate-300">Password</label>
+                <a href="#" className="text-[13px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors">Forgot?</a>
               </div>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors">
@@ -124,7 +133,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-12 pr-12 py-3.5 bg-slate-950/50 border border-slate-800 rounded-2xl text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  className="w-full pl-12 pr-12 py-4 bg-[#0a0f1c] border border-slate-800 hover:border-slate-700 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner font-medium tracking-wide"
                 />
                 <button
                   type="button"
@@ -136,53 +145,95 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 ml-1">
-              <input 
-                id="remember-me" 
-                type="checkbox" 
-                className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900" 
-              />
-              <label htmlFor="remember-me" className="text-sm text-slate-400 select-none">
-                Stay signed in
-              </label>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-500/20 active:scale-[0.98] disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                  <>
-                    Sign In <ArrowRight className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div className="relative py-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-800"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[#0b121f] px-2 text-slate-500 font-medium">New to MeetingMind?</span>
+            <div className="flex items-center gap-3 py-2">
+              <div className="relative flex items-start">
+                <div className="flex h-6 items-center">
+                  <input
+                    id="remember"
+                    name="remember"
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-600 focus:ring-offset-slate-900 cursor-pointer"
+                  />
+                </div>
+                <div className="ml-3 text-sm leading-6">
+                  <label htmlFor="remember" className="font-medium text-slate-400 cursor-pointer select-none">Remember for 30 days</label>
+                </div>
               </div>
             </div>
 
-            <Link 
-              href="/signup" 
-              className="w-full flex items-center justify-center py-3.5 border border-slate-800 hover:bg-slate-800/50 text-slate-300 font-semibold rounded-2xl transition-all"
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-[0_0_40px_-10px_rgba(79,70,229,0.5)] hover:shadow-[0_0_60px_-15px_rgba(79,70,229,0.7)] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 overflow-hidden relative group"
             >
-              Create Free Account
-            </Link>
-          </form>
-        </div>
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sign In"}
+            </button>
 
-        <p className="text-center text-[10px] text-slate-600 font-medium uppercase tracking-[0.2em] mt-8">
-          Secure Multi-Tenant Cloud Architecture
-        </p>
-      </motion.div>
+            <p className="text-center text-sm text-slate-400 pt-6">
+              Don't have an account?{' '}
+              <Link href="/signup" className="font-bold text-white hover:text-indigo-400 transition-colors">
+                Sign up
+              </Link>
+            </p>
+          </form>
+        </motion.div>
+      </div>
+
+      {/* Right Column - Visual Showcase */}
+      <div className="hidden lg:flex w-[55%] relative overflow-hidden bg-slate-900 items-center justify-center border-l border-slate-800">
+        {/* Dynamic Background Mesh */}
+        <div className="absolute inset-0 w-full h-full bg-[#030712]">
+          <div className="absolute top-[20%] left-[20%] w-[500px] h-[500px] bg-indigo-600/30 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '4s' }}></div>
+          <div className="absolute bottom-[20%] right-[20%] w-[400px] h-[400px] bg-blue-600/20 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '6s', animationDelay: '1s' }}></div>
+          <div className="absolute top-[40%] left-[50%] -translate-x-1/2 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[150px]"></div>
+        </div>
+        
+        {/* Subtle grid pattern overlay */}
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+
+        {/* Floating UI Elements */}
+        <div className="relative z-10 w-full max-w-lg">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="bg-slate-900/60 backdrop-blur-2xl border border-slate-700/50 p-8 rounded-[2.5rem] shadow-2xl relative"
+          >
+            <div className="absolute -top-6 -left-6 w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 rotate-12">
+               <ShieldCheck className="w-6 h-6 text-white" />
+            </div>
+            
+            <h3 className="text-2xl font-bold text-white mb-4">Enterprise-grade security.</h3>
+            <p className="text-slate-400 leading-relaxed mb-8">
+              Your meeting transcripts and generated intelligence are encrypted at rest and in transit. We prioritize your privacy above all else.
+            </p>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+                <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400">
+                  <Fingerprint className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-white font-bold text-sm">Secure Authentication</h4>
+                  <p className="text-slate-500 text-xs mt-0.5">JWT-based sessions & hashed credentials</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+                <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-white font-bold text-sm">Isolated Environments</h4>
+                  <p className="text-slate-500 text-xs mt-0.5">Strict multi-tenant data separation</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
     </div>
   );
 }
