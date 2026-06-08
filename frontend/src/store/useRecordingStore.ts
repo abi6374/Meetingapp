@@ -4,6 +4,8 @@ let mediaRecorder: MediaRecorder | null = null;
 let streamInstance: MediaStream | null = null;
 let audioChunks: Blob[] = [];
 let timerInterval: NodeJS.Timeout | null = null;
+let audioContext: AudioContext | null = null;
+let analyser: AnalyserNode | null = null;
 
 interface RecordingStore {
     isRecording: boolean;
@@ -16,6 +18,7 @@ interface RecordingStore {
     stopRecording: () => void;
     clearRecording: () => void;
     updateDuration: () => void;
+    getAnalyser: () => AnalyserNode | null;
 }
 
 export const useRecordingStore = create<RecordingStore>((set, get) => ({
@@ -25,6 +28,8 @@ export const useRecordingStore = create<RecordingStore>((set, get) => ({
     sourceLabel: null,
     duration: 0,
     startTime: null,
+
+    getAnalyser: () => analyser,
 
     updateDuration: () => {
         const { startTime } = get();
@@ -38,7 +43,14 @@ export const useRecordingStore = create<RecordingStore>((set, get) => ({
         audioChunks = [];
 
         try {
-            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            const stream = await navigator.mediaDevices.getDisplayMedia({ 
+                video: { displaySurface: 'browser' }, 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                } as any
+            });
             streamInstance = stream;
             
             const audioTracks = stream.getAudioTracks();
@@ -50,17 +62,26 @@ export const useRecordingStore = create<RecordingStore>((set, get) => ({
                 return;
             }
 
+            // Audio Analysis Setup
+            audioContext = new AudioContext();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            const source = audioContext.createMediaStreamSource(new MediaStream([audioTracks[0]]));
+            source.connect(analyser);
+
             const label = videoTracks.length > 0 ? videoTracks[0].label : 'System Audio';
             set({ sourceLabel: label });
 
-            if (videoTracks.length > 0) {
-                videoTracks[0].onended = () => {
+            stream.getTracks().forEach(track => {
+                track.onended = () => {
                     get().stopRecording();
                 };
-            }
+            });
 
             const audioStream = new MediaStream(audioTracks);
-            mediaRecorder = new MediaRecorder(audioStream);
+            mediaRecorder = new MediaRecorder(audioStream, {
+                mimeType: 'audio/webm;codecs=opus'
+            });
 
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data.size > 0) {
@@ -71,6 +92,13 @@ export const useRecordingStore = create<RecordingStore>((set, get) => ({
             mediaRecorder.onstop = () => {
                 streamInstance?.getTracks().forEach(t => t.stop());
                 if (timerInterval) clearInterval(timerInterval);
+                
+                if (audioContext) {
+                    audioContext.close().catch(console.error);
+                    audioContext = null;
+                    analyser = null;
+                }
+
                 const blob = new Blob(audioChunks, { type: 'audio/webm' });
                 set({ audioBlob: blob, isRecording: false });
             };

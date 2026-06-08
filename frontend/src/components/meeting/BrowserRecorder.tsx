@@ -7,6 +7,7 @@ import { twMerge } from 'tailwind-merge';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useRecordingStore } from '@/store/useRecordingStore';
+import WaveformVisualizer from '@/components/ui/WaveformVisualizer';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -21,7 +22,8 @@ export default function BrowserRecorder() {
     audioBlob,
     error,
     sourceLabel,
-    duration
+    duration,
+    getAnalyser
   } = useRecordingStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -85,6 +87,9 @@ export default function BrowserRecorder() {
           {isRecording ? "Recording Background Meeting" : audioBlob ? "Recording Completed" : "Meeting: Ready"}
         </div>
       </div>
+
+      {/* Waveform Visualization */}
+      <WaveformVisualizer analyser={getAnalyser()} isRecording={isRecording} />
 
       {/* Timer */}
       <div className="text-center mb-10">

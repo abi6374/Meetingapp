@@ -13,7 +13,7 @@ import logging
 import httpx
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 
 from app.core.config import settings
@@ -23,6 +23,8 @@ from app.services.rag import (
     find_related_meetings,
 )
 from app.core.prompts import RAG_QA_SYSTEM_PROMPT
+from app.api.dependencies import get_current_user
+from app.models.domain import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -93,7 +95,6 @@ async def call_llm(system: str, user: str) -> str:
 
 class ChatRequest(BaseModel):
     question:   str
-    user_id:    str
     meeting_id: Optional[str] = None   # scope to a specific meeting
     date_from:  Optional[str] = None   # "YYYY-MM-DD"
     date_to:    Optional[str] = None
@@ -128,7 +129,7 @@ class RelatedMeeting(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.post("/chat", response_model=ChatResponse, summary="Grounded Q&A over meetings")
-async def rag_chat(req: ChatRequest):
+async def rag_chat(req: ChatRequest, current_user: User = Depends(get_current_user)):
     """
     Answer a question grounded in the user's indexed meeting transcripts.
     Optionally scoped to a single meeting or date range.
@@ -138,7 +139,7 @@ async def rag_chat(req: ChatRequest):
 
     context, source_chunks = build_rag_context(
         query=req.question,
-        user_id=req.user_id,
+        user_id=current_user.id,
         meeting_id=req.meeting_id,
         date_from=req.date_from,
         date_to=req.date_to,
@@ -179,10 +180,10 @@ async def rag_chat(req: ChatRequest):
 @router.get("/search", response_model=list[SearchResult], summary="Semantic transcript search")
 async def rag_search(
     q:         str          = Query(..., min_length=2, description="Search query"),
-    user_id:   str          = Query(...),
     n:         int          = Query(default=8, ge=1, le=25),
     date_from: Optional[str]= Query(default=None),
     date_to:   Optional[str]= Query(default=None),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Full-corpus semantic search across all of a user's indexed meeting transcripts.
@@ -190,7 +191,7 @@ async def rag_search(
     """
     hits = semantic_search(
         query=q,
-        user_id=user_id,
+        user_id=current_user.id,
         n_results=n,
         date_from=date_from,
         date_to=date_to,
@@ -214,8 +215,8 @@ async def rag_search(
             summary="Find related meetings")
 async def related_meetings(
     meeting_id: str,
-    user_id:    str = Query(...),
     n:          int = Query(default=5, ge=1, le=10),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Return meetings whose MOM summaries are most similar to the given meeting.
@@ -223,7 +224,7 @@ async def related_meetings(
     """
     results = find_related_meetings(
         meeting_id=meeting_id,
-        user_id=user_id,
+        user_id=current_user.id,
         n=n,
     )
     if results is None:

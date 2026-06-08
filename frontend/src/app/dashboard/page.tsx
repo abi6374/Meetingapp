@@ -154,12 +154,15 @@ export default function DashboardPage() {
     }
   };
 
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
 
     setUploading(true);
-    const toastId = toast.loading("Uploading and initiating speech processing...");
+    setUploadProgress(0);
+    const toastId = toast.loading("Preparing upload...");
     
     try {
       const formData = new FormData();
@@ -167,12 +170,26 @@ export default function DashboardPage() {
       formData.append('title', uploadTitle || file.name);
       formData.append('date', new Date().toISOString());
       
-      const res = await api.post('meetings/upload', formData);
+      const res = await api.post('meetings/upload', formData, {
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentCompleted);
+            if (percentCompleted < 100) {
+              toast.loading(`Uploading: ${percentCompleted}%`, { id: toastId });
+            } else {
+              toast.loading(`Processing speech...`, { id: toastId });
+            }
+          }
+        },
+      });
+      
       toast.success("Meeting uploaded successfully! Processing started.", { id: toastId });
       
       // Clear state
       setFile(null);
       setUploadTitle('');
+      setUploadProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = '';
       
       // Refresh meetings list

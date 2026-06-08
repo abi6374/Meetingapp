@@ -8,6 +8,7 @@ export interface UseMediaRecorderReturn {
   error: string | null;
   sourceLabel: string | null;
   duration: number;
+  analyserRef: React.RefObject<AnalyserNode | null>;
 }
 
 export function useMediaRecorder(): UseMediaRecorderReturn {
@@ -21,10 +22,20 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
   const chunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
+  
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
+    }
+    
+    // Clean up AudioContext
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(console.error);
+      audioContextRef.current = null;
     }
   }, []);
 
@@ -36,8 +47,14 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
 
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true, // Required to prompt tab sharing in most browsers
-        audio: true, // Must prompt user to share audio
+        video: {
+          displaySurface: "browser",
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } as any,
       });
 
       const audioTracks = stream.getAudioTracks();
@@ -48,19 +65,32 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
         throw new Error('No audio track found. Please ensure "Share tab audio" is checked.');
       }
 
+      // Set up Audio Analyser for Visualization
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      const source = audioContext.createMediaStreamSource(new MediaStream([audioTracks[0]]));
+      source.connect(analyser);
+      
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      sourceRef.current = source;
+
       const label = videoTracks.length > 0 ? videoTracks[0].label : 'System Audio';
       setSourceLabel(label);
 
       // Stop recording if the user stops sharing via the browser UI
-      if (videoTracks.length > 0) {
-        videoTracks[0].onended = () => {
+      stream.getTracks().forEach(track => {
+        track.onended = () => {
           stopRecording();
         };
-      }
+      });
 
       // We only need the audio track for recording
       const audioStream = new MediaStream(audioTracks);
-      const mediaRecorder = new MediaRecorder(audioStream);
+      const mediaRecorder = new MediaRecorder(audioStream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (e) => {
@@ -70,7 +100,7 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
       };
 
       mediaRecorder.onstop = () => {
-        stream.getTracks().forEach(t => t.stop()); // Stop all tracks (including video)
+        stream.getTracks().forEach(t => t.stop()); 
         clearInterval(timerIntervalRef.current!);
         
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
@@ -99,6 +129,7 @@ export function useMediaRecorder(): UseMediaRecorderReturn {
     audioBlob,
     error,
     sourceLabel,
-    duration
+    duration,
+    analyserRef
   };
 }

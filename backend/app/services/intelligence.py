@@ -57,6 +57,10 @@ def generate_mom(title: str, date: str, duration: str, speakers: str, transcript
     """Generate structured Meeting Minutes via AI."""
     logger.info("Generating Meeting Intelligence Report...")
     
+    if not transcript or len(transcript.strip()) < 50:
+        logger.warning("Transcript too short for MOM generation.")
+        return "# Meeting Intelligence Report\n\n**Note:** The transcript was too short or empty. No meaningful intelligence could be extracted. Please ensure your audio input was working correctly."
+
     # Parse duration to seconds
     duration_seconds = 0
     if duration and duration != "TBD":
