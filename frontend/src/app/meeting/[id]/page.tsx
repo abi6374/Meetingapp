@@ -7,7 +7,7 @@ import api from '@/lib/api';
 import { 
   Download, AlertCircle, ArrowLeft, Loader2, MessageSquare, 
   AlignLeft, Users, FileText, Trash2, Edit3, Save, X,
-  CheckCircle2, ChevronRight, Zap, Search
+  CheckCircle2, ChevronRight, Zap, Search, Bot, Calendar, Clock
 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import ProtectedLayout from '@/components/layout/ProtectedLayout';
