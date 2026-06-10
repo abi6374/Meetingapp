@@ -297,35 +297,48 @@ export default function MeetingDetailPage() {
         <div className="bg-slate-900/40 border border-slate-800/60 rounded-3xl p-8 min-h-[600px] shadow-xl backdrop-blur-sm relative">
           
           {activeTab === 'mom' && (
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="h-full">
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              transition={{ duration: 0.4 }}
+              className="h-full"
+            >
               <div className="flex justify-between items-center mb-8 border-b border-slate-800/60 pb-5">
                 <div>
                   <h2 className="text-2xl font-bold text-white tracking-tight">Meeting Intelligence</h2>
-                  <p className="text-slate-400 text-sm mt-1">AI-generated executive analysis and deliverables.</p>
+                  <p className="text-slate-400 text-sm mt-1">Formal Minutes of Meeting (MOM) report.</p>
                 </div>
-                {meeting.mom_text && (
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => {
-                        if (isEditing) handleSaveMom();
-                        else setIsEditing(true);
-                      }}
-                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                        isEditing ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                      }`}
-                    >
-                      {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : isEditing ? <><Save className="w-4 h-4" /> Save Changes</> : <><Edit3 className="w-4 h-4" /> Edit Report</>}
-                    </button>
-                    {isEditing && (
+                <div className="flex items-center gap-3">
+                  <Link 
+                    href={`/chat?meetingId=${meeting.id}`}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 rounded-xl text-xs font-bold transition-all shadow-sm"
+                  >
+                    <Bot className="w-4 h-4" /> Open in Assistant
+                  </Link>
+                  {meeting.mom_text && (
+                    <div className="flex items-center gap-3">
                       <button 
-                        onClick={() => { setIsEditing(false); setEditedMom(meeting.mom_text); }}
-                        className="p-2.5 bg-slate-800 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-xl transition-colors"
+                        onClick={() => {
+                          if (isEditing) handleSaveMom();
+                          else setIsEditing(true);
+                        }}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                          isEditing ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                        }`}
                       >
-                        <X className="w-5 h-5" />
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : isEditing ? <><Save className="w-4 h-4" /> Save Changes</> : <><Edit3 className="w-4 h-4" /> Edit Report</>}
                       </button>
-                    )}
-                  </div>
-                )}
+                      {isEditing && (
+                        <button 
+                          onClick={() => { setIsEditing(false); setEditedMom(meeting.mom_text); }}
+                          className="p-2.5 bg-slate-800 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-xl transition-colors"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {!meeting.mom_text ? (
@@ -336,203 +349,193 @@ export default function MeetingDetailPage() {
                   </div>
                   <div className="text-center">
                     <p className="text-lg font-bold text-slate-300">Analyzing meeting dynamics...</p>
-                    <p className="text-sm text-slate-500 mt-1">This usually takes 15-30 seconds depending on duration.</p>
+                    <p className="text-sm text-slate-500 mt-1">Generating formal minutes and action items.</p>
                   </div>
                 </div>
               ) : isEditing ? (
                 <textarea 
                   value={editedMom}
                   onChange={(e) => setEditedMom(e.target.value)}
-                  className="w-full h-[600px] bg-slate-900/80 border border-slate-700 rounded-2xl p-8 text-slate-300 font-mono text-sm leading-relaxed focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none shadow-inner"
+                  className="w-full h-[600px] bg-slate-950/50 border border-slate-700 rounded-2xl p-8 text-slate-300 font-mono text-sm leading-relaxed focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none shadow-inner"
                   placeholder="Paste or edit meeting notes here..."
                 />
               ) : (() => {
-                // Try parsing as JSON for modern structured reports
                 try {
-                  // Robust JSON cleaning to handle markdown fences if the AI includes them
                   let cleanJson = meeting.mom_text.trim();
                   if (cleanJson.startsWith('```')) {
                     cleanJson = cleanJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
                   }
                   
                   const momJson = JSON.parse(cleanJson);
+
                   return (
-                    <div className="space-y-10 pb-10">
-                      {/* Summary Section */}
-                      <div className="bg-gradient-to-br from-indigo-500/10 to-transparent border border-indigo-500/20 rounded-3xl p-8 shadow-sm">
-                        <div className="flex items-center justify-between mb-6">
-                          <div className="flex items-center gap-3 text-indigo-400">
+                    <div className="space-y-12 pb-10">
+                      {/* 1. Header Info (Formal Grid) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-800/20 border border-slate-800/60 p-8 rounded-[2rem]">
+                        <div className="space-y-5">
+                           <div className="group">
+                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 group-hover:text-indigo-400 transition-colors">Meeting Subject</p>
+                             <p className="text-xl font-bold text-white leading-tight">{momJson.header?.title || momJson.title || meeting.title}</p>
+                           </div>
+                           <div className="flex gap-10">
+                             <div>
+                               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Date</p>
+                               <p className="text-sm text-slate-300 font-medium">{momJson.header?.date || momJson.date || 'N/A'}</p>
+                             </div>
+                             <div>
+                               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Time</p>
+                               <p className="text-sm text-slate-300 font-medium">{momJson.header?.time || 'N/A'}</p>
+                             </div>
+                           </div>
+                        </div>
+                        <div className="space-y-5">
+                           <div>
+                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Facilitator</p>
+                             <p className="text-sm text-slate-300 font-medium">{momJson.header?.facilitator || 'TBD'}</p>
+                           </div>
+                           <div>
+                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Attendance</p>
+                             <div className="flex flex-wrap gap-2 mt-2">
+                               {(momJson.attendance?.present || momJson.participants || []).map((p: string, i: number) => (
+                                 <span key={i} className="px-2.5 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-lg text-[10px] font-bold">{p}</span>
+                               ))}
+                             </div>
+                           </div>
+                        </div>
+                      </div>
+
+                      {/* 2. Executive Summary (The missing section) */}
+                      {(momJson.summary) && (
+                        <div className="bg-indigo-600/[0.03] border border-indigo-500/10 rounded-[2rem] p-8 shadow-sm">
+                          <div className="flex items-center gap-3 mb-4 text-indigo-400">
                             <FileText className="w-5 h-5" />
-                            <h3 className="text-sm font-bold tracking-widest uppercase">Executive Summary</h3>
+                            <h3 className="text-sm font-black uppercase tracking-widest">Executive Summary</h3>
                           </div>
-                          {momJson.sentiment && (
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                              momJson.sentiment === 'positive' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                              momJson.sentiment === 'tense' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                              'bg-slate-800 text-slate-400 border-slate-700'
-                            }`}>
-                              {momJson.sentiment} Tone
-                            </span>
-                          )}
+                          <p className="text-slate-200 text-lg leading-relaxed font-light italic opacity-90">
+                            {momJson.summary}
+                          </p>
                         </div>
-                        <p className="text-slate-200 text-lg leading-relaxed font-light italic">
-                          {momJson.summary}
-                        </p>
-                        {momJson.topics_discussed && (
-                          <div className="flex flex-wrap gap-2 mt-6">
-                            {momJson.topics_discussed.map((t: string, i: number) => (
-                              <span key={i} className="px-3 py-1 bg-slate-800/50 border border-slate-700/50 rounded-lg text-xs text-slate-400">
-                                #{t}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Decisions Card */}
-                        <div className="bg-slate-800/20 border border-slate-800 rounded-3xl p-8 flex flex-col">
-                          <div className="flex items-center gap-3 mb-6 text-emerald-400">
-                            <CheckCircle2 className="w-5 h-5" />
-                            <h3 className="text-sm font-bold tracking-widest uppercase">Key Decisions</h3>
-                          </div>
-                          <div className="space-y-4 flex-1">
-                            {momJson.key_decisions?.length > 0 ? momJson.key_decisions.map((d: string, i: number) => (
-                              <div key={i} className="flex gap-4 items-start bg-slate-900/40 p-4 rounded-2xl border border-slate-800/50 group hover:border-emerald-500/30 transition-colors">
-                                <span className="w-6 h-6 bg-emerald-500/10 text-emerald-400 rounded-lg flex items-center justify-center text-xs font-bold shrink-0">{i+1}</span>
-                                <p className="text-slate-300 text-sm leading-relaxed">{d}</p>
-                              </div>
-                            )) : (
-                              <p className="text-slate-500 text-sm italic py-4 text-center">No final decisions recorded.</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Action Items Card */}
-                        <div className="bg-slate-800/20 border border-slate-800 rounded-3xl p-8">
-                          <div className="flex items-center gap-3 mb-6 text-blue-400">
-                            <Zap className="w-5 h-5" />
-                            <h3 className="text-sm font-bold tracking-widest uppercase">Action Items</h3>
-                          </div>
-                          <div className="space-y-3">
-                            {momJson.action_items?.length > 0 ? momJson.action_items.map((item: any, i: number) => (
-                              <div key={i} className="bg-slate-900/40 border border-slate-800/50 rounded-2xl p-4 group hover:bg-slate-800/40 transition-all">
-                                <div className="flex justify-between items-start mb-2">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                    item.priority === 'high' ? 'bg-red-500/10 text-red-400' :
-                                    item.priority === 'medium' ? 'bg-amber-500/10 text-amber-400' :
-                                    'bg-blue-500/10 text-blue-400'
-                                  }`}>
-                                    {item.priority || 'Normal'}
-                                  </span>
-                                  {item.due_date && <span className="text-[10px] text-slate-500 font-mono">Due: {item.due_date}</span>}
-                                </div>
-                                <p className="text-slate-200 text-sm font-medium mb-2">{item.task}</p>
-                                <div className="flex items-center gap-2 text-xs text-slate-500">
-                                  <Users className="w-3 h-3" />
-                                  <span>Owner: <span className="text-slate-300">{item.owner || 'TBD'}</span></span>
-                                </div>
-                              </div>
-                            )) : (
-                              <p className="text-slate-500 text-sm italic py-4 text-center">No pending actions identified.</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Next Meeting Info */}
-                      {momJson.next_meeting && (
-                         <div className="flex items-center gap-4 p-6 bg-slate-900/60 border border-slate-800 rounded-2xl shadow-sm">
-                            <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center">
-                              <MessageSquare className="w-6 h-6" />
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Next Sync</p>
-                              <p className="text-slate-200 font-medium">{momJson.next_meeting}</p>
-                            </div>
-                         </div>
                       )}
+
+                      {/* 3. Agenda & Detailed Discussion */}
+                      <div className="space-y-10">
+                         <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] border-b border-slate-800 pb-4 flex items-center gap-3">
+                           <AlignLeft className="w-4 h-4" /> Discussion Timeline
+                         </h3>
+                         
+                         {momJson.agenda_items ? (
+                           momJson.agenda_items.map((item: any, i: number) => (
+                             <div key={i} className="group relative pl-10 border-l-2 border-slate-800 hover:border-indigo-500/50 transition-colors">
+                               <div className="absolute -left-[9px] top-0 w-4 h-4 bg-slate-900 border-2 border-slate-800 rounded-full group-hover:bg-indigo-600 group-hover:border-indigo-500 transition-all"></div>
+                               <h4 className="text-lg font-bold text-white mb-3 group-hover:text-indigo-400 transition-colors">{item.topic}</h4>
+                               <p className="text-slate-400 text-[15px] leading-relaxed mb-6">{item.discussion}</p>
+                               
+                               {item.decisions?.length > 0 && (
+                                 <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-5 mt-4">
+                                   <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-3">
+                                     <CheckCircle2 className="w-3.5 h-3.5" /> Key Decision
+                                   </div>
+                                   <ul className="space-y-3">
+                                     {item.decisions.map((d: string, j: number) => (
+                                       <li key={j} className="text-slate-300 text-sm leading-relaxed flex gap-3">
+                                          <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 shrink-0 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                                          {d}
+                                       </li>
+                                     ))}
+                                   </ul>
+                                 </div>
+                               )}
+                             </div>
+                           ))
+                         ) : (
+                           /* Legacy schema decisions display */
+                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                             <div className="bg-slate-800/20 border border-slate-800 rounded-3xl p-8">
+                               <h4 className="text-sm font-bold text-emerald-400 uppercase tracking-widest mb-6">Key Decisions</h4>
+                               <div className="space-y-4">
+                                 {momJson.key_decisions?.map((d: string, i: number) => (
+                                   <div key={i} className="flex gap-4 p-4 bg-slate-900/40 rounded-xl border border-slate-800">{d}</div>
+                                 ))}
+                               </div>
+                             </div>
+                           </div>
+                         )}
+                      </div>
+
+                      {/* 4. Action Items Table */}
+                      <div className="space-y-6">
+                         <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] border-b border-slate-800 pb-4 flex items-center gap-3">
+                           <Zap className="w-4 h-4 text-amber-400" /> Deliverables & Actions
+                         </h3>
+                         <div className="overflow-hidden bg-slate-900/40 border border-slate-800 rounded-3xl shadow-inner">
+                            <table className="w-full text-left border-collapse">
+                               <thead>
+                                 <tr className="bg-slate-800/30 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                   <th className="px-6 py-5 border-b border-slate-800 w-16 text-center">#</th>
+                                   <th className="px-6 py-5 border-b border-slate-800">Owner</th>
+                                   <th className="px-6 py-5 border-b border-slate-800">Action Item</th>
+                                   <th className="px-6 py-5 border-b border-slate-800">Timeline</th>
+                                 </tr>
+                               </thead>
+                               <tbody className="text-sm">
+                                 {(() => {
+                                    const allActions = momJson.agenda_items?.flatMap((it: any) => it.action_items || []) || momJson.action_items || [];
+                                    if (allActions.length === 0) return (
+                                      <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-600 italic">No explicit tasks were identified.</td></tr>
+                                    );
+                                    return allActions.map((a: any, idx: number) => {
+                                      const isStr = typeof a === 'string';
+                                      return (
+                                        <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-all group">
+                                          <td className="px-6 py-5 text-slate-600 font-mono text-xs text-center">{idx + 1}</td>
+                                          <td className="px-6 py-5">
+                                            <div className="flex items-center gap-3">
+                                              <div className="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-[10px] font-black text-indigo-400 group-hover:scale-110 transition-transform">
+                                                {(isStr ? 'T' : (a.owner?.charAt(0) || 'T')).toUpperCase()}
+                                              </div>
+                                              <span className="text-slate-300 font-semibold">{isStr ? 'TBD' : (a.owner || 'TBD')}</span>
+                                            </div>
+                                          </td>
+                                          <td className="px-6 py-5 text-slate-200 font-medium leading-relaxed">
+                                            {isStr ? a : a.task}
+                                          </td>
+                                          <td className="px-6 py-5">
+                                            <div className="flex items-center gap-2 text-slate-500 font-mono text-[10px] uppercase">
+                                              <Clock className="w-3 h-3" />
+                                              {isStr ? 'ASAP' : (a.deadline || a.due_date || 'N/A')}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    });
+                                 })()}
+                               </tbody>
+                            </table>
+                         </div>
+                      </div>
+
+                      {/* 5. Footer & Sentiment */}
+                      <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-10 border-t border-slate-800">
+                         {momJson.next_sync && (
+                           <div className="flex items-center gap-3 px-5 py-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl">
+                             <Calendar className="w-4 h-4 text-indigo-400" />
+                             <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">Next Meeting: <span className="text-indigo-400 ml-1">{momJson.next_sync}</span></span>
+                           </div>
+                         )}
+                         <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] border shadow-sm ${
+                            momJson.sentiment === 'positive' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                            momJson.sentiment === 'tense' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                            'bg-slate-800/50 text-slate-500 border-slate-700'
+                         }`}>
+                           Pulse: {momJson.sentiment || 'Neutral'}
+                         </div>
+                      </div>
                     </div>
                   );
                 } catch (e) {
-                  // Fallback to Markdown Parsing if JSON fails
                   return (
-                    <div className="space-y-12 pb-10">
-                      <div className="bg-gradient-to-br from-indigo-500/5 to-transparent border border-indigo-500/10 rounded-3xl p-8 shadow-sm">
-                        <div className="flex items-center gap-3 mb-4 text-indigo-400">
-                          <FileText className="w-5 h-5" />
-                          <h3 className="text-sm font-bold tracking-tight uppercase">Executive Summary</h3>
-                        </div>
-                        <div className="prose prose-invert prose-slate max-w-none text-slate-300 leading-relaxed text-lg italic font-light">
-                          {(meeting.mom_text.split(/## \d+\. Executive Summary/i)[1] || meeting.mom_text.split(/## Executive Summary/i)[1] || '').split('##')[0].trim().split('\n').map((line, i) => <p key={i}>{line}</p>) || 
-                           meeting.mom_text.split('\n\n')[0]}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div className="bg-slate-800/20 border border-slate-800 rounded-3xl p-8">
-                          <div className="flex items-center gap-3 mb-6 text-emerald-400">
-                            <CheckCircle2 className="w-5 h-5" />
-                            <h3 className="text-sm font-bold tracking-widest uppercase">Key Decisions</h3>
-                          </div>
-                          <div className="space-y-4">
-                            {(meeting.mom_text.match(/Key Decisions|Decisions Made/i)) ? (
-                               (meeting.mom_text.split(/## \d+\. (?:Key Decisions|Decisions Made)/i)[1] || meeting.mom_text.split(/## (?:Key Decisions|Decisions Made)/i)[1] || '')
-                               .split('##')[0]
-                               .split('\n')
-                               .filter(l => l.trim().match(/^(\d+\.|-|\*)/))
-                               .map((decision, idx) => (
-                                <div key={idx} className="flex gap-4 items-start bg-slate-900/40 p-4 rounded-2xl border border-slate-800/50">
-                                  <span className="w-6 h-6 bg-emerald-500/10 text-emerald-400 rounded-lg flex items-center justify-center text-xs font-bold shrink-0">{idx+1}</span>
-                                  <p className="text-slate-300 text-sm leading-relaxed">{decision.replace(/^(\d+\.|-|\*)\s*/, '')}</p>
-                                </div>
-                               ))
-                            ) : (
-                              <p className="text-slate-500 text-sm italic">No specific decisions identified.</p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="bg-slate-800/20 border border-slate-800 rounded-3xl p-8">
-                          <div className="flex items-center gap-3 mb-6 text-blue-400">
-                            <Zap className="w-5 h-5" />
-                            <h3 className="text-sm font-bold tracking-widest uppercase">Immediate Actions</h3>
-                          </div>
-                          <div className="space-y-3">
-                             {(meeting.mom_text.match(/Action Items/i)) ? (
-                               (meeting.mom_text.split(/## \d+\. Action Items/i)[1] || meeting.mom_text.split(/## Action Items/i)[1] || '')
-                               .split('##')[0]
-                               .split('\n')
-                               .filter(l => l.trim().match(/^(\d+\.|-|\*|\|)/) && !l.includes('Action | Owner'))
-                               .map((item, idx) => {
-                                 const cleanItem = item.replace(/^(\d+\.|-|\*|\|)\s*/, '').replace(/\|/g, ' ').trim();
-                                 if (!cleanItem || cleanItem.match(/^[-\s]+$/)) return null;
-                                 return (
-                                    <div key={idx} className="group flex items-center justify-between gap-4 bg-slate-900/40 hover:bg-slate-800/40 p-4 rounded-2xl border border-slate-800/50 transition-colors">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-2 h-2 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50"></div>
-                                        <p className="text-slate-300 text-sm">{cleanItem}</p>
-                                      </div>
-                                      <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 transition-colors" />
-                                    </div>
-                                 );
-                               })
-                             ) : (
-                               <p className="text-slate-500 text-sm italic">No action items found.</p>
-                             )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-8">
-                        <div className="flex items-center gap-3 mb-8 border-b border-slate-800 pb-4">
-                          <AlignLeft className="w-5 h-5 text-indigo-400" />
-                          <h3 className="text-lg font-bold text-white">Full Intelligence Report</h3>
-                        </div>
-                        <div className="prose prose-invert prose-slate max-w-none prose-h2:text-indigo-400 prose-h2:font-bold prose-h2:mt-8 prose-h2:mb-4 prose-p:leading-relaxed prose-li:text-slate-300 prose-a:text-indigo-400">
-                          <div dangerouslySetInnerHTML={{ __html: meeting.mom_text.replace(/\n/g, '<br/>') }} />
-                        </div>
-                      </div>
+                    <div className="prose prose-invert prose-slate max-w-none">
+                      <div dangerouslySetInnerHTML={{ __html: meeting.mom_text.replace(/\n/g, '<br/>') }} />
                     </div>
                   );
                 }

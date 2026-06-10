@@ -62,3 +62,6 @@ streamlit run app.py
     - `config.toml`: Streamlit configuration (theming, server settings).
     - `secrets.toml`: Sensitive API keys (should NOT be committed).
 - `README.md`: User-facing documentation and setup guide.
+
+run command
+ cd backend; .\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload  

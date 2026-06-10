@@ -38,6 +38,7 @@ Return ONLY valid JSON — no markdown fences, no preamble. Schema:
     "present":       ["<name or Speaker_N>", ...],
     "absent":        []
   },
+  "summary":         "<a concise 3-5 sentence high-level executive overview of the meeting's primary purpose and final outcome>",
   "agenda_items": [
     {
       "topic":       "<agenda topic>",
