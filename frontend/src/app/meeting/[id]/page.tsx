@@ -404,18 +404,26 @@ export default function MeetingDetailPage() {
                         </div>
                       </div>
 
-                      {/* 2. Executive Summary (The missing section) */}
-                      {(momJson.summary) && (
-                        <div className="bg-indigo-600/[0.03] border border-indigo-500/10 rounded-[2rem] p-8 shadow-sm">
-                          <div className="flex items-center gap-3 mb-4 text-indigo-400">
-                            <FileText className="w-5 h-5" />
-                            <h3 className="text-sm font-black uppercase tracking-widest">Executive Summary</h3>
+                      {/* 2. Executive Summary */}
+                      {(() => {
+                        const summaryText = momJson.summary || (momJson.agenda_items?.[0]?.discussion) || "This meeting focused on " + (momJson.header?.title || meeting.title) + ". Detailed notes are available in the timeline below.";
+                        return (
+                          <div className="relative overflow-hidden bg-indigo-600/[0.04] border border-indigo-500/20 rounded-[2.5rem] p-10 shadow-2xl group">
+                            {/* Decorative background glow */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] -mr-32 -mt-32 rounded-full pointer-events-none group-hover:bg-indigo-500/20 transition-all duration-700"></div>
+                            
+                            <div className="flex items-center gap-4 mb-6">
+                              <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 border border-indigo-500/20 shadow-lg">
+                                <FileText className="w-6 h-6" />
+                              </div>
+                              <h3 className="text-sm font-black uppercase tracking-[0.3em] text-indigo-300">Executive Summary</h3>
+                            </div>
+                            <p className="text-slate-100 text-xl leading-relaxed font-medium italic opacity-95 relative z-10 selection:bg-indigo-500/40">
+                              "{summaryText}"
+                            </p>
                           </div>
-                          <p className="text-slate-200 text-lg leading-relaxed font-light italic opacity-90">
-                            {momJson.summary}
-                          </p>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* 3. Agenda & Detailed Discussion */}
                       <div className="space-y-10">
